@@ -1,9 +1,17 @@
-# API
+# API y servidor
 fastapi
 uvicorn[standard]
 
-# Base de datos
+# Base de datos y ORM
 sqlalchemy
 asyncpg
 psycopg2-binary
+
+# Autenticación
 passlib[bcrypt]
+bcrypt==4.0.1
+python-jose[cryptography]
+
+# Configuración desde entorno
+pydantic[email]
+pydantic-settings

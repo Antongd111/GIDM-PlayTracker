@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.schemas.auth import UserRegister
+from app.schemas.auth import UserRegister, UserLogin
 from app.core.database import get_async_session
 from app.models.user import User
 from sqlalchemy import select
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password, create_access_token
 
 router = APIRouter()
 
@@ -35,3 +35,17 @@ async def register(user: UserRegister, db: AsyncSession = Depends(get_async_sess
 
     # Se devuelve el id del usuario como respuesta
     return {"message": "Usuario registrado con éxito", "id": new_user.id}
+
+# Endpoint para inicio de sesión
+@router.post("/login")
+async def login(user: UserLogin, db: AsyncSession = Depends(get_async_session)):
+    result = await db.execute(select(User).where(User.email == user.email))
+    db_user = result.scalar_one_or_none()
+
+    # Si no existe el usuario o la contraseña es incorrecta
+    if not db_user or not verify_password(user.password, db_user.hashed_password):
+        raise HTTPException(status_code=401, detail="Email o contraseña incorrectos")
+
+    # Se crea el token y se devuelve
+    token = create_access_token(data={"sub": str(db_user.id)})
+    return {"access_token": token, "token_type": "bearer"}
