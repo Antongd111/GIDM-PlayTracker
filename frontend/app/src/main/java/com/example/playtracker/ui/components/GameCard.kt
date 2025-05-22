@@ -12,6 +12,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.data.model.Game
+import com.example.playtracker.ui.theme.FondoSecundario
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
 
 @Composable
 fun GameCard(game: Game) {
@@ -19,20 +22,33 @@ fun GameCard(game: Game) {
         shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .width(150.dp)
-            .height(220.dp)
+            .height(220.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = FondoSecundario,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(8.dp)
+            modifier = Modifier.padding(8.dp),
         ) {
             Image(
                 painter = rememberAsyncImagePainter(game.imageUrl),
                 contentDescription = game.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.size(100.dp)
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(8.dp))
             )
             Spacer(Modifier.height(8.dp))
-            Text(game.title, style = MaterialTheme.typography.labelLarge)
+            Text(
+                text = game.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
