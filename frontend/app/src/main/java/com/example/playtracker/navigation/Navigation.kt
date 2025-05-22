@@ -8,8 +8,8 @@ import com.example.playtracker.ui.screen.HomeScreen
 import com.example.playtracker.ui.screen.LoginScreen
 
 @Composable
-fun AppNavigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "login") {
+fun AppNavigation(navController: NavHostController, startDestination: String) {
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("login") {
             LoginScreen(navController)
         }

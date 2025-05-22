@@ -61,4 +61,5 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
     implementation("androidx.navigation:navigation-compose:2.7.5")
     implementation("io.coil-kt:coil-compose:2.4.0")
+    implementation ("androidx.datastore:datastore-preferences:1.0.0")
 }

@@ -20,12 +20,15 @@ import androidx.compose.ui.res.painterResource
 import com.example.playtracker.R
 import com.example.playtracker.ui.theme.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalContext
+import com.example.playtracker.data.storage.TokenManager
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -80,6 +83,8 @@ fun LoginScreen(navController: NavController) {
                             withContext(Dispatchers.Main) {
                                 if (response.isSuccessful) {
                                     val token = response.body()?.access_token
+                                    TokenManager.saveToken(context, token ?: "")
+
                                     println("JWT: $token")
 
                                     navController.navigate("home") {
