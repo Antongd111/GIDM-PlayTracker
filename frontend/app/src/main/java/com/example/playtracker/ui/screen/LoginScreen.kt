@@ -1,4 +1,4 @@
-package com.example.playtracker.ui
+package com.example.playtracker.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -6,7 +6,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -57,8 +56,9 @@ fun LoginScreen(navController: NavController) {
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Usuario") },
-                modifier = Modifier.fillMaxWidth()
+                label = { Text("Email") },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyLarge
             )
 
             OutlinedTextField(
@@ -66,7 +66,8 @@ fun LoginScreen(navController: NavController) {
                 onValueChange = { password = it },
                 label = { Text("Contraseña") },
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -80,7 +81,11 @@ fun LoginScreen(navController: NavController) {
                                 if (response.isSuccessful) {
                                     val token = response.body()?.access_token
                                     println("JWT: $token")
-                                    // TODO: navController.navigate("home")
+
+                                    navController.navigate("home") {
+                                        popUpTo("login") { inclusive = true }
+                                        launchSingleTop = true
+                                    }
                                 } else {
                                     error = "Credenciales incorrectas"
                                 }

@@ -13,4 +13,12 @@ object RetrofitInstance {
             .build()
             .create(AuthApi::class.java)
     }
+
+    val gameApi: GameApi by lazy {
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+            .create(GameApi::class.java)
+    }
 }
