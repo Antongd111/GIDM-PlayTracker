@@ -50,5 +50,5 @@ Esto inicia un contenedor con la base de datos, con los siguientes parámetros:
 
 ### 6. Ejecutar el servidor en desarrollo
 ```bash
-uvicorn main:app --reload
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
