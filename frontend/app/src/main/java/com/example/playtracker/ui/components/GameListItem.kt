@@ -2,6 +2,7 @@ package com.example.playtracker.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -9,6 +10,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.data.model.Game
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.background
+import com.example.playtracker.ui.theme.AzulElectrico
+import com.example.playtracker.ui.theme.TextoClaro
 
 @Composable
 fun GameListItem(game: Game) {
@@ -17,16 +27,56 @@ fun GameListItem(game: Game) {
         modifier = Modifier
             .fillMaxWidth()
             .height(90.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surface,
+            ),
+
     ) {
+        // Imagen
         Image(
             painter = rememberAsyncImagePainter(game.imageUrl),
             contentDescription = game.title,
-            modifier = Modifier.size(70.dp)
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxHeight()
+                .aspectRatio(1f)
         )
+
         Spacer(Modifier.width(12.dp))
-        Column {
-            Text(game.title, style = MaterialTheme.typography.bodyLarge)
-            Text(game.year.toString(), style = MaterialTheme.typography.bodySmall)
+
+        // Título y año
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = game.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = TextoClaro,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (game.year == 0) "Por determinar" else game.year.toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoClaro
+            )
+        }
+
+        // Botón lateral
+        Button(
+            onClick = { /* De momento no hace nada */ },
+            modifier = Modifier
+                .height(90.dp)
+                .width(30.dp),
+            contentPadding = PaddingValues(0.dp),
+            shape = RoundedCornerShape(0.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = AzulElectrico,
+                contentColor = TextoClaro
+            )
+        ) {
+            Text("+", fontSize = 24.sp, textAlign = TextAlign.Center)
         }
     }
 }

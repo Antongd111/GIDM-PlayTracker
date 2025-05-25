@@ -19,7 +19,7 @@ import androidx.compose.ui.draw.clip
 @Composable
 fun GameCard(game: Game) {
     Card(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(0.dp),
         modifier = Modifier
             .width(150.dp)
             .height(220.dp),
