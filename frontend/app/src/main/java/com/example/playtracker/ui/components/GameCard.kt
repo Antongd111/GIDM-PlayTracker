@@ -15,10 +15,14 @@ import com.example.playtracker.data.model.Game
 import com.example.playtracker.ui.theme.FondoSecundario
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.clip
+import androidx.navigation.NavController
 
 @Composable
-fun GameCard(game: Game) {
+fun GameCard(game: Game, navController: NavController) {
     Card(
+        onClick = {
+            navController.navigate("gameDetail/${game.id}")
+        },
         shape = RoundedCornerShape(0.dp),
         modifier = Modifier
             .width(150.dp)

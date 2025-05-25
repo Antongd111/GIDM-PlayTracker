@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.example.playtracker.data.api.RetrofitInstance
 import com.example.playtracker.data.model.Game
 import com.example.playtracker.ui.components.GameCard
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(navController: NavController) {
     val search = remember { mutableStateOf("") }
     val gameList = remember { mutableStateListOf<Game>() }
     val isSearching = remember { mutableStateOf(false) }  // <-- NUEVO FLAG
@@ -68,7 +69,7 @@ fun HomeScreen() {
                                 }
                                 gameList.clear()
                                 gameList.addAll(result)
-                                isSearching.value = true  // <-- entramos en modo búsqueda
+                                isSearching.value = true
                             } catch (e: Exception) {
                                 e.printStackTrace()
                             }
@@ -90,7 +91,7 @@ fun HomeScreen() {
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(gameList) { game ->
-                            GameCard(game)
+                            GameCard(game = game, navController = navController)
                         }
                     }
                 }
@@ -107,7 +108,7 @@ fun HomeScreen() {
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(gameList) { game ->
-                            GameCard(game)
+                            GameCard(game = game, navController = navController)
                         }
                     }
                 }
@@ -124,7 +125,7 @@ fun HomeScreen() {
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(gameList) { game ->
-                            GameCard(game)
+                            GameCard(game = game, navController = navController)
                         }
                     }
                 }
