@@ -34,15 +34,14 @@ fun GameCard(game: Game, navController: NavController) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(8.dp),
         ) {
             Image(
                 painter = rememberAsyncImagePainter(game.imageUrl),
                 contentDescription = game.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .fillMaxWidth()
+                    .height(120.dp)
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -50,7 +49,7 @@ fun GameCard(game: Game, navController: NavController) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(8.dp),
                 textAlign = TextAlign.Center
             )
         }

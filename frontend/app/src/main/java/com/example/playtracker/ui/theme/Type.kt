@@ -6,6 +6,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.MaterialTheme
 
 import com.example.playtracker.R
 
@@ -22,13 +23,23 @@ val Typography = Typography(
         fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.5.sp,
+        color = TextoClaro
     ),
     labelLarge = TextStyle(
         fontFamily = Inter,
         fontWeight = FontWeight.Bold,
         fontSize = 20.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
-    )
+        letterSpacing = 0.5.sp,
+        color = TextoClaro
+    ),
+    titleMedium = TextStyle(
+        fontFamily = Inter,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.5.sp,
+        color = TextoClaro
+    ),
 )
