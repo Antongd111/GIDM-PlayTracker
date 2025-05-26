@@ -25,7 +25,7 @@ import kotlinx.coroutines.withContext
 fun HomeScreen(navController: NavController) {
     val search = remember { mutableStateOf("") }
     val gameList = remember { mutableStateListOf<Game>() }
-    val isSearching = remember { mutableStateOf(false) }  // <-- NUEVO FLAG
+    val isSearching = remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
@@ -36,7 +36,7 @@ fun HomeScreen(navController: NavController) {
             }
             gameList.clear()
             gameList.addAll(games)
-            isSearching.value = false  // <-- aseguramos que no estamos en modo búsqueda inicial
+            isSearching.value = false
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -45,8 +45,7 @@ fun HomeScreen(navController: NavController) {
     Surface(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(WindowInsets.systemBars.asPaddingValues()),
+            .background(MaterialTheme.colorScheme.background),
         color = MaterialTheme.colorScheme.background
     ) {
         LazyColumn(

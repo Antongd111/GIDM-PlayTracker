@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                     val token = withContext(Dispatchers.IO) {
                         TokenManager.getToken(context)
                     }
-                    startDestination = if (!token.isNullOrBlank()) "home" else "login"
+                    startDestination = if (!token.isNullOrBlank()) "main" else "login"
                 }
 
                 // Mostrar navegación solo si se ha decidido la ruta inicial

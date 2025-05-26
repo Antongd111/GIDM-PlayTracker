@@ -11,6 +11,8 @@ import com.example.playtracker.ui.screen.HomeScreen
 import com.example.playtracker.ui.screen.LoginScreen
 import com.example.playtracker.ui.viewmodel.GameDetailViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.playtracker.ui.screen.MainScreen
+import com.example.playtracker.ui.screen.SocialScreen
 
 @Composable
 fun AppNavigation(navController: NavHostController, startDestination: String) {
@@ -20,6 +22,12 @@ fun AppNavigation(navController: NavHostController, startDestination: String) {
         }
         composable("home") {
             HomeScreen(navController)
+        }
+        composable("social") {
+            SocialScreen(navController)
+        }
+        composable("main") {
+            MainScreen(navController)
         }
         composable("gameDetail/{gameId}") { backStackEntry ->
             val gameId = backStackEntry.arguments?.getString("gameId")?.toIntOrNull() ?: return@composable

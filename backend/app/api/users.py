@@ -38,3 +38,8 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
     deleted = await crud_user.delete_user(db, user_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+@router.get("/search/", response_model=List[UserOut])
+async def search_users(query: str, db: AsyncSession = Depends(get_db)):
+    users = await crud_user.search_users(db, query)
+    return users

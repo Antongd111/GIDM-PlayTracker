@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete
+from sqlalchemy import update, delete, or_
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 from passlib.context import CryptContext
@@ -49,3 +49,14 @@ async def delete_user(db: AsyncSession, user_id: int):
         await db.delete(user)
         await db.commit()
     return user
+
+async def search_users(db: AsyncSession, query: str):
+    result = await db.execute(
+        select(User).where(
+            or_(
+                User.username.ilike(f"%{query}%"),
+                User.email.ilike(f"%{query}%")
+            )
+        )
+    )
+    return result.scalars().all()
