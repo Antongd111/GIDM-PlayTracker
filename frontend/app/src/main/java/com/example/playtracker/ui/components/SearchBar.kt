@@ -18,7 +18,7 @@ fun SearchBar(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text("Busca cualquier juego...") },
+        placeholder = { Text("Búsqueda...") },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
