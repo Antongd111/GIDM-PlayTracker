@@ -4,6 +4,9 @@ from typing import List
 from app.core.database import SessionLocal
 from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.crud import user as crud_user
+from app.core.dependencies import get_current_user
+from app.models.user import User
+
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -14,6 +17,11 @@ async def get_db():
 @router.get("/", response_model=List[UserOut])
 async def read_users(db: AsyncSession = Depends(get_db)):
     return await crud_user.get_users(db)
+
+
+@router.get("/me", response_model=UserOut)
+async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
 
 @router.get("/{user_id}", response_model=UserOut)
 async def read_user(user_id: int, db: AsyncSession = Depends(get_db)):
