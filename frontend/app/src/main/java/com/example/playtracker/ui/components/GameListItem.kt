@@ -1,43 +1,39 @@
 package com.example.playtracker.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import coil.compose.rememberAsyncImagePainter
-import com.example.playtracker.data.model.Game
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.foundation.background
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
+import com.example.playtracker.data.model.Game
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
-import com.example.playtracker.ui.viewmodel.UserViewModel
 
 @Composable
-fun GameListItem(game: Game) {
-
-    val userViewModel: UserViewModel = viewModel()
-    val userId = userViewModel.userId
-
+fun GameListItem(
+    game: Game,
+    navController: NavController
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .height(90.dp)
             .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surface,
-            ),
-
+            .background(color = MaterialTheme.colorScheme.surface)
+            .clickable { navController.navigate("gameDetail/${game.id}") }
     ) {
         // Imagen
         Image(
@@ -47,6 +43,7 @@ fun GameListItem(game: Game) {
             modifier = Modifier
                 .fillMaxHeight()
                 .aspectRatio(1f)
+                .clip(RoundedCornerShape(4.dp))
         )
 
         Spacer(Modifier.width(12.dp))
@@ -69,7 +66,7 @@ fun GameListItem(game: Game) {
             )
         }
 
-        // Botón lateral
+        // Botón lateral (independiente del click del item)
         Button(
             onClick = { /* De momento no hace nada */ },
             modifier = Modifier

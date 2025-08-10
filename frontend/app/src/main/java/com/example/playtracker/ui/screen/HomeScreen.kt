@@ -147,7 +147,7 @@ fun HomeScreen(navController: NavController) {
                 } else {
                     // Mostrar resultados de búsqueda en lista vertical
                     items(gameList) { game ->
-                        GameListItem(game)
+                        GameListItem(game = game, navController = navController)
                     }
                 }
             }

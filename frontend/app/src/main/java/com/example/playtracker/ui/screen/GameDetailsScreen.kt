@@ -65,8 +65,6 @@ fun GameDetailScreen(
     val isLoading = viewModel.isLoading
     val error = viewModel.error
 
-    Log.d("AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "$userGame")
-
     when {
         isLoading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
