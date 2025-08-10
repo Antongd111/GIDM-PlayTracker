@@ -3,14 +3,16 @@ package com.example.playtracker
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.view.WindowCompat
-import androidx.navigation.compose.rememberNavController
-import com.example.playtracker.ui.theme.PlayTrackerTheme
-import com.example.playtracker.navigation.AppNavigation
-import com.example.playtracker.data.storage.TokenManager
-import kotlinx.coroutines.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowCompat
+import androidx.navigation.compose.rememberNavController
+import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.navigation.AppNavigation
+import com.example.playtracker.ui.theme.PlayTrackerTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -22,18 +24,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             PlayTrackerTheme {
                 val navController = rememberNavController()
-                val context = applicationContext
+                val context = LocalContext.current
+                val prefs = remember { UserPreferences(context) }
+
                 var startDestination by remember { mutableStateOf<String?>(null) }
 
-                // Cargar el token desde DataStore en un hilo de fondo
+                // Lee el token del DataStore y decide la pantalla inicial
                 LaunchedEffect(Unit) {
                     val token = withContext(Dispatchers.IO) {
-                        TokenManager.getToken(context)
+                        prefs.tokenFlow.firstOrNull()
                     }
                     startDestination = if (!token.isNullOrBlank()) "main" else "login"
                 }
 
-                // Mostrar navegación solo si se ha decidido la ruta inicial
                 if (startDestination != null) {
                     AppNavigation(navController, startDestination!!)
                 }

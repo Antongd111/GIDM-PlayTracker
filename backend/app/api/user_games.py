@@ -11,16 +11,16 @@ async def get_db():
     async with SessionLocal() as session:
         yield session
 
-@router.get("/", response_model=List[UserGameOut])
-async def list_games(user_id: int, db: AsyncSession = Depends(get_db)):
-    return await crud.get_user_games(db, user_id)
-
 @router.get("/{game_id}", response_model=UserGameOut)
 async def get_game(user_id: int, game_id: int, db: AsyncSession = Depends(get_db)):
     game = await crud.get_user_game(db, user_id, game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Juego no encontrado")
     return game
+
+@router.get("/", response_model=List[UserGameOut])
+async def list_games(user_id: int, db: AsyncSession = Depends(get_db)):
+    return await crud.get_user_games(db, user_id)
 
 @router.post("/", response_model=UserGameOut, status_code=201)
 async def add_game(user_id: int, data: UserGameCreate, db: AsyncSession = Depends(get_db)):

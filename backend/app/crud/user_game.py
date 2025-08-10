@@ -9,7 +9,7 @@ async def get_user_games(db: AsyncSession, user_id: int):
 
 async def get_user_game(db: AsyncSession, user_id: int, game_id: int):
     result = await db.execute(
-        select(UserGame).where(UserGame.user_id == user_id, UserGame.id == game_id)
+        select(UserGame).where(UserGame.user_id == user_id, UserGame.game_rawg_id == game_id)
     )
     return result.scalar_one_or_none()
 

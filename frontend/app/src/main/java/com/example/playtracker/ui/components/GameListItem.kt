@@ -17,11 +17,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
+import com.example.playtracker.ui.viewmodel.UserViewModel
 
 @Composable
 fun GameListItem(game: Game) {
+
+    val userViewModel: UserViewModel = viewModel()
+    val userId = userViewModel.userId
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

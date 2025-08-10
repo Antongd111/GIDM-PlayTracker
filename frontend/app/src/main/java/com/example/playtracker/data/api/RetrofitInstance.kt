@@ -6,28 +6,26 @@ import retrofit2.converter.gson.GsonConverterFactory
 object RetrofitInstance {
     private const val BASE_URL = "http://192.168.18.191:8000/"
 
-    val api: AuthApi by lazy {
+    private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(AuthApi::class.java)
+    }
+
+    val api: AuthApi by lazy {
+        retrofit.create(AuthApi::class.java)
     }
 
     val gameApi: GameApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(GameApi::class.java)
+        retrofit.create(GameApi::class.java)
     }
 
     val userApi: UserApi by lazy {
-        Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(UserApi::class.java)
+        retrofit.create(UserApi::class.java)
     }
 
+    val userGameApi: UserGameApi by lazy {
+        retrofit.create(UserGameApi::class.java)
+    }
 }

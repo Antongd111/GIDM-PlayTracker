@@ -22,6 +22,7 @@ import com.example.playtracker.ui.theme.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
 import com.example.playtracker.data.storage.TokenManager
+import com.example.playtracker.data.UserPreferences
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -29,6 +30,7 @@ fun LoginScreen(navController: NavController) {
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val prefs = remember { UserPreferences(context) }
 
     Box(
         modifier = Modifier
@@ -82,11 +84,25 @@ fun LoginScreen(navController: NavController) {
                             val response = RetrofitInstance.api.login(LoginRequest(email, password))
                             withContext(Dispatchers.Main) {
                                 if (response.isSuccessful) {
-                                    val token = response.body()?.access_token
-                                    TokenManager.saveToken(context, token ?: "")
+                                    val token = response.body()?.access_token ?: ""
 
-                                    println("JWT: $token")
+                                    // Guarda token en DataStore
+                                    val prefs = UserPreferences(context)
+                                    withContext(Dispatchers.IO) {
+                                        prefs.saveToken(token)
+                                    }
 
+                                    // Pide /users/me con el token para obtener el id
+                                    val me = withContext(Dispatchers.IO) {
+                                        RetrofitInstance.userApi.getCurrentUser("Bearer $token")
+                                    }
+
+                                    // Guarda userId en DataStore
+                                    withContext(Dispatchers.IO) {
+                                        prefs.saveUserId(me.id)
+                                    }
+
+                                    // Navega a home
                                     navController.navigate("home") {
                                         popUpTo("login") { inclusive = true }
                                         launchSingleTop = true

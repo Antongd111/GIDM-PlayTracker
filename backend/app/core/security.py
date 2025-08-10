@@ -18,7 +18,7 @@ def get_password_hash(password):
 # Para generar y verificar JWT
 SECRET_KEY = settings.SECRET_KEY
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 100000
 ALGORITHM = settings.ALGORITHM
 
 # Creación de un token para la sesión

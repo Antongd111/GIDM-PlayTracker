@@ -16,14 +16,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
-import com.example.playtracker.data.api.RetrofitInstance
-import com.example.playtracker.data.storage.TokenManager
+import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.ui.viewmodel.UserViewModel
 
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
@@ -32,18 +33,8 @@ fun MainScreen(parentNavController: NavHostController) {
     val currentRoute = navBackStackEntry?.destination?.route
     val context = LocalContext.current
 
-    var userId by remember { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(Unit) {
-        try {
-            val token = TokenManager.getToken(context)
-            Log.d("MainScreen", "Token actual: $token")
-            val user = RetrofitInstance.userApi.getCurrentUser("Bearer $token")
-            userId = user.id
-        } catch (e: Exception) {
-            Log.e("MainScreen", "Error al obtener el usuario: ${e.message}")
-        }
-    }
+    val prefs = remember { UserPreferences(context) }
+    val storedUserId by prefs.userIdFlow.collectAsState(initial = null)
 
     Scaffold(
         bottomBar = {
@@ -58,14 +49,18 @@ fun MainScreen(parentNavController: NavHostController) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .background(if (currentRoute == "home") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                        .background(
+                            if (currentRoute == "home")
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surface
+                        )
                         .clickable {
                             if (currentRoute != "home") {
-                                val options = navOptions {
+                                navController.navigate("home") {
                                     popUpTo("home") { inclusive = false }
                                     launchSingleTop = true
                                 }
-                                navController.navigate("home", options)
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -74,7 +69,10 @@ fun MainScreen(parentNavController: NavHostController) {
                         imageVector = Icons.Filled.VideogameAsset,
                         contentDescription = "Juegos",
                         modifier = Modifier.size(40.dp),
-                        tint = if (currentRoute == "home") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        tint = if (currentRoute == "home")
+                            MaterialTheme.colorScheme.onPrimary
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -83,14 +81,18 @@ fun MainScreen(parentNavController: NavHostController) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .background(if (currentRoute == "social") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
+                        .background(
+                            if (currentRoute == "social")
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surface
+                        )
                         .clickable {
                             if (currentRoute != "social") {
-                                val options = navOptions {
+                                navController.navigate("social") {
                                     popUpTo("home") { inclusive = false }
                                     launchSingleTop = true
                                 }
-                                navController.navigate("social", options)
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -99,19 +101,26 @@ fun MainScreen(parentNavController: NavHostController) {
                         imageVector = Icons.Filled.Group,
                         contentDescription = "Social",
                         modifier = Modifier.size(40.dp),
-                        tint = if (currentRoute == "social") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        tint = if (currentRoute == "social")
+                            MaterialTheme.colorScheme.onPrimary
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                // Usuario actual (navega a user/{userId})
+                // Usuario
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .background(if (currentRoute?.startsWith("user/") == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface)
-                        .clickable {
-                            Log.d("MainScreen", "Botón de usuario pulsado, userId=$userId")
-                            userId?.let {
+                        .background(
+                            if (currentRoute?.startsWith("user/") == true)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.surface
+                        )
+                        .clickable(enabled = storedUserId != null) {
+                            storedUserId?.let {
                                 navController.navigate("user/$it")
                             }
                         },
@@ -121,7 +130,10 @@ fun MainScreen(parentNavController: NavHostController) {
                         imageVector = Icons.Filled.Person,
                         contentDescription = "Usuario",
                         modifier = Modifier.size(40.dp),
-                        tint = if (currentRoute?.startsWith("user/") == true) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        tint = if (currentRoute?.startsWith("user/") == true)
+                            MaterialTheme.colorScheme.onPrimary
+                        else
+                            MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -138,8 +150,6 @@ fun MainScreen(parentNavController: NavHostController) {
             ) {
                 composable("home") { HomeScreen(parentNavController) }
                 composable("social") { SocialScreen(parentNavController) }
-
-                // Nueva ruta con parámetro userId
                 composable("user/{userId}") { backStackEntry ->
                     val userId = backStackEntry.arguments?.getString("userId")?.toIntOrNull()
                     if (userId != null) {

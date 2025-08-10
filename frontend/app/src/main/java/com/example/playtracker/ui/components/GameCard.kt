@@ -1,24 +1,31 @@
 package com.example.playtracker.ui.components
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.data.model.Game
 import com.example.playtracker.ui.theme.FondoSecundario
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.draw.clip
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.playtracker.ui.viewmodel.UserViewModel
+import com.example.playtracker.data.UserPreferences
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
 fun GameCard(game: Game, navController: NavController) {
+
     Card(
         onClick = {
             navController.navigate("gameDetail/${game.id}")

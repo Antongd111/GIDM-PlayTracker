@@ -1,5 +1,6 @@
 package com.example.playtracker.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,35 +13,59 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
+import com.example.playtracker.data.UserPreferences
 import com.example.playtracker.ui.viewmodel.GameDetailViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextDecoration
+import kotlinx.coroutines.flow.firstOrNull
 
 @Composable
-fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
-    LaunchedEffect(Unit) {
+fun GameDetailScreen(
+    viewModel: GameDetailViewModel,
+    gameId: Int,
+) {
+    val context = LocalContext.current
+    val prefs = remember { UserPreferences(context) }
+    var userId by remember { mutableStateOf<Int?>(null) }
+
+    // Carga del detalle del juego (no depende de userId)
+    LaunchedEffect(gameId) {
         viewModel.loadGameDetail(gameId)
     }
 
+    // Lee userId del DataStore una vez
+    LaunchedEffect(Unit) {
+        userId = prefs.userIdFlow.firstOrNull()
+        userId?.let { uid ->
+            viewModel.getUserGame(uid, gameId)
+        }
+    }
+
+    // Si más tarde cambia userId (p.ej. tras login), vuelve a cargar el userGame
+    LaunchedEffect(userId) {
+        userId?.let { uid ->
+            viewModel.getUserGame(uid, gameId)
+        }
+    }
+
     val gameDetail = viewModel.gameDetail
+    val userGame = viewModel.userGame
     val isLoading = viewModel.isLoading
     val error = viewModel.error
+
+    Log.d("AAAAAAAAAAAAAAAAAAAAAAAAAAAA", "$userGame")
 
     when {
         isLoading -> {
@@ -48,11 +73,13 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                 CircularProgressIndicator()
             }
         }
+
         error != null -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Error: $error")
             }
         }
+
         gameDetail != null -> {
             Column(
                 modifier = Modifier
@@ -61,7 +88,7 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                     .verticalScroll(rememberScrollState())
                     .padding(WindowInsets.systemBars.asPaddingValues())
             ) {
-                // Cover + title
+                // Imagen principal
                 Image(
                     painter = rememberAsyncImagePainter(gameDetail.imageUrl),
                     contentDescription = gameDetail.title,
@@ -71,13 +98,14 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                         .height(200.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
                     text = gameDetail.title,
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(start = 16.dp, end = 16.dp)
+                        .padding(horizontal = 16.dp)
                 )
                 Text(
                     text = gameDetail.releaseDate ?: "Sin fecha",
@@ -87,17 +115,40 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Status buttons
+                // Botones de estado
+                val statusOptions = listOf("No seguido", "Por jugar", "Jugando", "Completado")
+                val currentStatus = userGame?.status ?: "No seguido"
+                val canUpdate = userId != null
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    listOf("No seguido", "Por jugar", "Jugando", "Completado").forEach { status ->
+                    statusOptions.forEach { status ->
+                        val isSelected = currentStatus == status
+
                         Button(
-                            onClick = { /* actualizar estado */ },
-                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                userId?.let { uid ->
+                                    viewModel.updateGameStatus(uid, gameId, status)
+                                }
+                            },
+                            enabled = canUpdate,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 2.dp),
                             contentPadding = PaddingValues(4.dp),
                             shape = RoundedCornerShape(0.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (isSelected)
+                                    Color.White
+                                else
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         ) {
                             Text(status, fontSize = 12.sp)
                         }
@@ -106,9 +157,7 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // SECCIÓN: DESCRIPCIÓN
-                // Si el texto es demasiado grande, se queda en un máximo de 10 líneas, a no ser que
-                // se pulse el botón "Ver más"
+                // Descripción con "ver más"
                 var expanded by remember { mutableStateOf(false) }
 
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -161,13 +210,13 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Galería
+                // Galería de imágenes
                 Text(
                     text = "Galería",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                 )
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -193,13 +242,13 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Reviews (simuladas o futuras)
+                // Opiniones simuladas
                 Text(
                     text = "Opiniones",
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)
-                        .padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     gameDetail.similarGames.forEach { similar ->
@@ -222,7 +271,7 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, gameId: Int) {
                                 Column {
                                     Text(similar.title, style = MaterialTheme.typography.bodyMedium)
                                     Row {
-                                        repeat(5) {  // Aquí solo ejemplo de estrellas fijas
+                                        repeat(5) {
                                             Icon(
                                                 imageVector = Icons.Default.Star,
                                                 contentDescription = "Star",
