@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, BigInteger
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -11,6 +11,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     status = Column(String, default="Disponible")
     avatar_url = Column(String)
+    favorite_rawg_game_id = Column(BigInteger, nullable=True)
     
     # Relación con los juegos del usuario
     games = relationship("UserGame", back_populates="user")

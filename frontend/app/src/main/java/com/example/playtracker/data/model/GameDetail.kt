@@ -1,7 +1,7 @@
 package com.example.playtracker.data.model
 
 data class GameDetail(
-    val id: Int,
+    val id: Long,
     val title: String,
     val description: String,
     val releaseDate: String?,
@@ -22,7 +22,7 @@ data class GameDetail(
 )
 
 data class SimilarGame(
-    val id: Int,
+    val id: Long,
     val title: String,
     val imageUrl: String
 )

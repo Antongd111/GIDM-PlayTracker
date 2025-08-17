@@ -24,7 +24,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.example.playtracker.data.UserPreferences
-import com.example.playtracker.ui.viewmodel.UserViewModel
 
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
@@ -44,7 +43,7 @@ fun MainScreen(parentNavController: NavHostController) {
                     .height(80.dp)
                     .navigationBarsPadding()
             ) {
-                // Juegos
+                // Pantalla de videojuegos
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -76,7 +75,7 @@ fun MainScreen(parentNavController: NavHostController) {
                     )
                 }
 
-                // Social
+                // Pantalla de Social
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -108,7 +107,7 @@ fun MainScreen(parentNavController: NavHostController) {
                     )
                 }
 
-                // Usuario
+                // Pantalla de Usuario
                 Box(
                     modifier = Modifier
                         .weight(1f)

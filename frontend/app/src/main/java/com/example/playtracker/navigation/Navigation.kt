@@ -30,9 +30,8 @@ fun AppNavigation(navController: NavHostController, startDestination: String) {
             MainScreen(navController)
         }
         composable("gameDetail/{gameId}") { backStackEntry ->
-            val gameId = backStackEntry.arguments?.getString("gameId")?.toIntOrNull() ?: return@composable
+            val gameId = backStackEntry.arguments?.getString("gameId")?.toLongOrNull() ?: return@composable
 
-            // Crea el ViewModel manualmente si no usas Hilt
             val viewModel: GameDetailViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                     return GameDetailViewModel() as T

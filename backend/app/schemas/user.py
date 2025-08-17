@@ -14,9 +14,11 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     status: Optional[str] = None
     avatar_url: Optional[str] = None
+    favorite_rawg_game_id: Optional[int] = None
 
 class UserOut(UserBase):
     id: int
+    favorite_rawg_game_id: Optional[int] = None
 
     class Config:
         orm_mode = True

@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -33,23 +34,31 @@ import kotlinx.coroutines.awaitAll
 @Composable
 fun UserScreen(
     navController: NavController,
-    userId: Int                 // ← volvemos a exigirlo por parámetro
+    userId: Int
 ) {
+    // Estado para usuario
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Estado para juegos completados reales
+    // Estado para juegos completados
     var completedGames by remember { mutableStateOf<List<GameDetail>>(emptyList()) }
     var isLoadingCompleted by remember { mutableStateOf(true) }
     var completedError by remember { mutableStateOf<String?>(null) }
 
-    // Cargar el usuario + user_games cuando cambie el parámetro userId
+    // Estado para favorito
+    var favoriteGame by remember { mutableStateOf<GameDetail?>(null) }
+    var isLoadingFavorite by remember { mutableStateOf(true) }
+    var favoriteError by remember { mutableStateOf<String?>(null) }
+
+    // Cargar datos cuando cambie el parámetro userId
     LaunchedEffect(userId) {
         isLoading = true
         isLoadingCompleted = true
+        isLoadingFavorite = true
         errorMessage = null
         completedError = null
+        favoriteError = null
 
         try {
             // 1) Cargar el usuario
@@ -58,7 +67,7 @@ fun UserScreen(
             }
             Log.d("UserScreen", "Cargado userId=$userId -> ${user?.username}")
 
-            // 2) Cargar user_games y filtrar por COMPLETED (ajusta el literal si en tu BD usas otro)
+            // 2) Cargar user_games y filtrar por COMPLETED
             val userGames: List<UserGame> = withContext(Dispatchers.IO) {
                 RetrofitInstance.userGameApi.getUserGames(userId)
             }
@@ -79,13 +88,24 @@ fun UserScreen(
                 }.awaitAll().filterNotNull()
             }
             completedGames = details
+
+            // 4) Cargar favorito si existe
+            favoriteGame = null
+            val favId = user?.favorite_rawg_game_id
+            if (favId != null) {
+                favoriteGame = withContext(Dispatchers.IO) {
+                    RetrofitInstance.gameApi.getGameDetails(favId)
+                }
+            }
         } catch (e: Exception) {
             Log.e("UserScreen", "Error cargando datos: ${e.message}", e)
             if (user == null) errorMessage = "No se pudo cargar el usuario"
             completedError = "No se pudieron cargar los juegos completados"
+            favoriteError = "No se pudo cargar el juego favorito"
         } finally {
             isLoading = false
             isLoadingCompleted = false
+            isLoadingFavorite = false
         }
     }
 
@@ -155,40 +175,102 @@ fun UserScreen(
                             .fillMaxSize()
                             .padding(top = 15.dp, bottom = 16.dp, start = 10.dp, end = 10.dp)
                     ) {
-                        // ---- Juego favorito (placeholder, lo dejamos para el final) ----
+                        // ---- Juego favorito ----
                         Text("Juego favorito", style = MaterialTheme.typography.titleMedium)
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(modifier = Modifier.padding(12.dp)) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(R.drawable.default_avatar),
-                                    contentDescription = null,
+
+                        when {
+                            isLoadingFavorite -> {
+                                Card(
                                     modifier = Modifier
-                                        .size(90.dp)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Box(Modifier.height(110.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+
+                            favoriteError != null -> {
+                                Text(
+                                    favoriteError ?: "Error cargando favorito",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(vertical = 8.dp)
                                 )
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text("— pendiente —", style = MaterialTheme.typography.bodyLarge)
-                                    Row {
-                                        repeat(5) {
-                                            Icon(
-                                                Icons.Default.Star,
-                                                contentDescription = "Estrella",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
+                            }
+
+                            favoriteGame == null -> {
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(12.dp)) {
+                                        Image(
+                                            painter = rememberAsyncImagePainter(R.drawable.default_avatar),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(90.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column {
+                                            Text("— sin favorito —", style = MaterialTheme.typography.bodyLarge)
+                                            Text(
+                                                "Elige un juego y márcalo con la ⭐",
+                                                style = MaterialTheme.typography.labelSmall
                                             )
                                         }
                                     }
-                                    Text(
-                                        "Ver opinión",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                                }
+                            }
+
+                            else -> {
+                                val game = favoriteGame!!
+                                Card(
+                                    onClick = { navController.navigate("gameDetail/${game.id}") },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(12.dp)) {
+                                        val imageUrl = game.imageUrl
+                                        Image(
+                                            painter = rememberAsyncImagePainter(
+                                                model = if (!imageUrl.isNullOrBlank()) imageUrl else R.drawable.default_avatar
+                                            ),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(100.dp)
+                                                .clip(RoundedCornerShape(8.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                        Spacer(Modifier.width(12.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(game.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                repeat(5) {
+                                                    Icon(
+                                                        Icons.Default.Star,
+                                                        contentDescription = "Estrella",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(
+                                                "Ver detalles",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -199,7 +281,7 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Juegos completados (datos reales) ----
+                        // ---- Juegos completados ----
                         val completedCount = completedGames.size
                         Text("Juegos completados ($completedCount)", style = MaterialTheme.typography.titleMedium)
 
@@ -214,6 +296,7 @@ fun UserScreen(
                                     CircularProgressIndicator()
                                 }
                             }
+
                             completedError != null -> {
                                 Text(
                                     completedError ?: "Error cargando completados",
@@ -222,6 +305,7 @@ fun UserScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 )
                             }
+
                             completedGames.isEmpty() -> {
                                 Text(
                                     "Aún no hay juegos completados.",
@@ -229,6 +313,7 @@ fun UserScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 )
                             }
+
                             else -> {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -276,7 +361,7 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Géneros más jugados (de momento estático) ----
+                        // ---- Géneros más jugados ----
                         Text("Géneros más jugados", style = MaterialTheme.typography.titleMedium)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),

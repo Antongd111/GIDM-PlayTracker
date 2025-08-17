@@ -16,7 +16,7 @@ interface UserGameApi {
     @GET("users/{user_id}/games/{game_rawg_id}")
     suspend fun getUserGame(
         @Path("user_id") userId: Int,
-        @Path("game_rawg_id") gameRawgId: Int
+        @Path("game_rawg_id") gameRawgId: Long
     ): UserGame
 
     @POST("users/{user_id}/games/")
@@ -28,13 +28,13 @@ interface UserGameApi {
     @PUT("users/{user_id}/games/{game_rawg_id}")
     suspend fun updateUserGame(
         @Path("user_id") userId: Int,
-        @Path("game_rawg_id") gameRawgId: Int,
+        @Path("game_rawg_id") gameRawgId: Long,
         @Body body: UserGameUpdate
     ): UserGame
 
     @DELETE("users/{user_id}/games/{game_rawg_id}")
     suspend fun deleteUserGame(
         @Path("user_id") userId: Int,
-        @Path("game_rawg_id") gameRawgId: Int
+        @Path("game_rawg_id") gameRawgId: Long
     )
 }

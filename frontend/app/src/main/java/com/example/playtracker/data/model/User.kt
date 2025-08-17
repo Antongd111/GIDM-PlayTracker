@@ -7,5 +7,6 @@ data class User(
     val email: String,
     val username: String,
     val status: String,
+    val favorite_rawg_game_id: Long?,
     @SerializedName("avatar_url") val avatarUrl: String
 )

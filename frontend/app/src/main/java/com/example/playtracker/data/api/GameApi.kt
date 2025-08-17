@@ -14,5 +14,5 @@ interface GameApi {
     suspend fun getPopularGames(@Query("page") page: Int = 2): List<Game>
 
     @GET("rawg/games/{id}")
-    suspend fun getGameDetails(@Path("id") gameId: Int): GameDetail
+    suspend fun getGameDetails(@Path("id") gameId: Long): GameDetail
 }

@@ -3,7 +3,7 @@ package com.example.playtracker.data.model
 data class UserGame(
     val id: Int,
     val user_id: Int,
-    val game_rawg_id: Int,
+    val game_rawg_id: Long,
     val status: String?,
     val score: Int?,
     val notes: String?,
@@ -11,7 +11,7 @@ data class UserGame(
 )
 
 data class UserGameRequest(
-    val game_rawg_id: Int,
+    val game_rawg_id: Long,
     val status: String? = null,
     val score: Int? = null,
     val notes: String? = null

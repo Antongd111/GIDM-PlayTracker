@@ -26,7 +26,7 @@ class GameDetailViewModel : ViewModel() {
     var error by mutableStateOf<String?>(null)
         private set
 
-    fun loadGameDetail(gameId: Int) {
+    fun loadGameDetail(gameId: Long) {
         viewModelScope.launch {
             isLoading = true
             error = null
@@ -41,7 +41,7 @@ class GameDetailViewModel : ViewModel() {
         }
     }
 
-    fun getUserGame(userId: Int, gameId: Int) {
+    fun getUserGame(userId: Int, gameId: Long) {
         viewModelScope.launch {
             try {
                 val result = RetrofitInstance.userGameApi.getUserGame(userId, gameId)
@@ -52,7 +52,7 @@ class GameDetailViewModel : ViewModel() {
         }
     }
 
-    fun updateGameStatus(userId: Int, gameRawgId: Int, newStatus: String) {
+    fun updateGameStatus(userId: Int, gameRawgId: Long, newStatus: String) {
         viewModelScope.launch {
             try {
                 if (userGame != null) {

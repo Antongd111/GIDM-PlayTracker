@@ -18,7 +18,6 @@ import com.example.playtracker.ui.theme.FondoSecundario
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.playtracker.ui.viewmodel.UserViewModel
 import com.example.playtracker.data.UserPreferences
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

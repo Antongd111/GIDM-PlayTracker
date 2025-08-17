@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.firstOrNull
 @Composable
 fun GameDetailScreen(
     viewModel: GameDetailViewModel,
-    gameId: Int,
+    gameId: Long,
 ) {
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
