@@ -3,6 +3,7 @@ package com.example.playtracker.ui.screen
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -320,7 +321,14 @@ fun UserScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 ) {
                                     items(completedGames, key = { it.id }) { game ->
-                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier
+                                                .clickable {
+                                                    navController.navigate("gameDetail/${game.id}")
+                                                }
+                                                .padding(4.dp)
+                                        ) {
                                             val imageUrl = game.imageUrl
                                             Image(
                                                 painter = rememberAsyncImagePainter(
