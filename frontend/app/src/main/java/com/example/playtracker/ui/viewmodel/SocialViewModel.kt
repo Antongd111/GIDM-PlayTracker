@@ -16,8 +16,11 @@ enum class FriendState { NONE, PENDING_SENT, FRIENDS }
 data class FriendsUiState(
     val workingFor: Set<Int> = emptySet(),            // ids en loading
     val states: Map<Int, FriendState> = emptyMap(),   // estado por userId
-    val error: String? = null
-)
+    val error: String? = null,
+    val incoming: List<com.example.playtracker.data.api.IncomingReq> = emptyList(),
+    val workingIncoming: Set<Int> = emptySet(),
+
+    )
 
 class FriendsViewModel(
     private val repo: FriendsRepository
@@ -121,6 +124,60 @@ class FriendsViewModel(
                         }
                 }
             }
+        }
+    }
+
+    fun loadIncoming(bearer: String) {
+        viewModelScope.launch {
+            val inc = repo.listIncoming(bearer).getOrElse { emptyList() }
+            _ui.update { it.copy(incoming = inc) }
+        }
+    }
+
+    fun acceptIncoming(fromUserId: Int, bearer: String, onSnack: (String) -> Unit) {
+        viewModelScope.launch {
+            _ui.update { it.copy(workingIncoming = it.workingIncoming + fromUserId) }
+            repo.accept(fromUserId, bearer)
+                .onSuccess {
+                    // quita de la lista y marca como FRIENDS
+                    _ui.update { curr ->
+                        val newList = curr.incoming.filter { it.other_user.id != fromUserId }
+                        val newStates = curr.states + (fromUserId to FriendState.FRIENDS)
+                        curr.copy(
+                            workingIncoming = curr.workingIncoming - fromUserId,
+                            incoming = newList,
+                            states = newStates
+                        )
+                    }
+                    onSnack("Solicitud aceptada")
+                }
+                .onFailure { e ->
+                    _ui.update { it.copy(workingIncoming = it.workingIncoming - fromUserId, error = e.message) }
+                    onSnack("No se pudo aceptar: ${e.message ?: ""}")
+                }
+        }
+    }
+
+    fun declineIncoming(fromUserId: Int, bearer: String, onSnack: (String) -> Unit) {
+        viewModelScope.launch {
+            _ui.update { it.copy(workingIncoming = it.workingIncoming + fromUserId) }
+            repo.decline(fromUserId, bearer)
+                .onSuccess {
+                    _ui.update { curr ->
+                        val newList = curr.incoming.filter { it.other_user.id != fromUserId }
+                        curr.copy(
+                            workingIncoming = curr.workingIncoming - fromUserId,
+                            incoming = newList,
+                            // opcional: asegura NONE
+                            states = curr.states + (fromUserId to FriendState.NONE)
+                        )
+                    }
+                    onSnack("Solicitud rechazada")
+                }
+                .onFailure { e ->
+                    _ui.update { it.copy(workingIncoming = it.workingIncoming - fromUserId, error = e.message) }
+                    onSnack("No se pudo rechazar: ${e.message ?: ""}")
+                }
         }
     }
 }

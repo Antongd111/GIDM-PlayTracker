@@ -24,6 +24,13 @@ data class OutgoingReq(
     val requested_at: String
 )
 
+data class IncomingReq(
+    val requester_id: Int,
+    val other_user: UserLite,
+    val status: String,
+    val requested_at: String
+)
+
 interface FriendsApi {
 
     @POST("friends/requests/{toUserId}")
@@ -61,6 +68,11 @@ interface FriendsApi {
         @Path("otherUserId") otherUserId: Int,
         @Header("Authorization") bearer: String
     ): Response<SimpleOk>
+
+    @GET("friends/requests/incoming")
+    suspend fun listIncoming(
+        @Header("Authorization") bearer: String
+    ): retrofit2.Response<List<IncomingReq>>
 
     @GET("friends")
     suspend fun listFriends(@Header("Authorization") bearer: String): Response<List<FriendLite>>

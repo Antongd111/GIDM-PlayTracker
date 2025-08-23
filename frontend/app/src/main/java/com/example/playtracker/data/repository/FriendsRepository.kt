@@ -1,6 +1,7 @@
 package com.example.playtracker.data.repository
 
 import com.example.playtracker.data.api.FriendsApi
+import com.example.playtracker.data.api.IncomingReq
 import retrofit2.HttpException
 
 class FriendsRepository(private val api: FriendsApi) {
@@ -26,6 +27,13 @@ class FriendsRepository(private val api: FriendsApi) {
         if (!res.isSuccessful) throw HttpException(res)
         res.body().orEmpty()
     }
+
+    suspend fun listIncoming(bearer: String): Result<List<IncomingReq>> =
+        kotlin.runCatching<List<IncomingReq>> {
+            val res = api.listIncoming(bearer)
+            if (!res.isSuccessful) throw HttpException(res)
+            res.body().orEmpty()
+        }
 
     suspend fun accept(fromUserId: Int, bearer: String): Result<Unit> = runCatching {
         val res = api.acceptFriendRequest(fromUserId, bearer)
