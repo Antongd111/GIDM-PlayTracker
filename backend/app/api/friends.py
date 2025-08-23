@@ -53,6 +53,8 @@ async def unfriend(
         raise HTTPException(status_code=404, detail="No hay amistad que eliminar")
     return {"ok": True}
 
+
+
 @router.delete("/requests/{to_user_id}")
 async def cancel_request(
     to_user_id: int,
@@ -81,7 +83,17 @@ async def list_friends(
     current_user = Depends(get_current_user),
 ):
     rows = await crud_friendship.list_friends(db, current_user.id)
-    return [FriendOut(id=r["id"], username=r["username"], avatar_url=r["avatar_url"]) for r in rows]
+    return [FriendOut(id=u.id, username=u.username, avatar_url=u.avatar_url) for u in rows]
+
+@router.get("/of/{user_id}", response_model=List[FriendOut])
+async def list_friends_of(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    _: object = Depends(get_current_user),
+):
+    rows = await crud_friendship.list_friends(db, user_id)
+    # rows son objetos User
+    return [FriendOut(id=u.id, username=u.username, avatar_url=u.avatar_url) for u in rows]
 
 @router.get("/requests/incoming", response_model=List[FriendshipRequestOut])
 async def incoming_requests(

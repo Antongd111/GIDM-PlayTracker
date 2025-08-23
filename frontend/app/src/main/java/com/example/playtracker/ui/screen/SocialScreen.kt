@@ -271,7 +271,7 @@ private fun IncomingRequestsDialog(
                             ElevatedCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.elevatedCardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
+                                    containerColor = MaterialTheme.colorScheme.background
                                 )
                             ) {
                                 Row(

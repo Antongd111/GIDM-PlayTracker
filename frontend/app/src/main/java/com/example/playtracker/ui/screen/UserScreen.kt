@@ -23,20 +23,28 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.R
+import com.example.playtracker.data.UserPreferences
 import com.example.playtracker.data.api.RetrofitInstance
+import com.example.playtracker.data.model.GameDetail
 import com.example.playtracker.data.model.User
 import com.example.playtracker.data.model.UserGame
-import com.example.playtracker.data.model.GameDetail
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun UserScreen(
     navController: NavController,
     userId: Int
 ) {
+    // Token (para pedir /friends del usuario autenticado)
+    val context = LocalContext.current
+    val prefs = remember { UserPreferences(context) }
+    val token by prefs.tokenFlow.collectAsState(initial = null)
+    val bearer = token?.let { "Bearer $it" }
+
     // Estado para usuario
     var user by remember { mutableStateOf<User?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -52,29 +60,35 @@ fun UserScreen(
     var isLoadingFavorite by remember { mutableStateOf(true) }
     var favoriteError by remember { mutableStateOf<String?>(null) }
 
-    // Cargar datos cuando cambie el parámetro userId
-    LaunchedEffect(userId) {
+    // Estado para amigos (del usuario autenticado)
+    var friends by remember { mutableStateOf<List<User>>(emptyList()) }
+    var isLoadingFriends by remember { mutableStateOf(true) }
+    var friendsError by remember { mutableStateOf<String?>(null) }
+
+    // Cargar datos cuando cambie userId o el token
+    LaunchedEffect(userId, bearer) {
         isLoading = true
         isLoadingCompleted = true
         isLoadingFavorite = true
+        isLoadingFriends = true
         errorMessage = null
         completedError = null
         favoriteError = null
+        friendsError = null
 
         try {
-            // 1) Cargar el usuario
+            // 1) Usuario
             user = withContext(Dispatchers.IO) {
                 RetrofitInstance.userApi.getUserById(userId)
             }
-            Log.d("UserScreen", "Cargado userId=$userId -> ${user?.username}")
 
-            // 2) Cargar user_games y filtrar por COMPLETED
+            // 2) UserGames -> Completados
             val userGames: List<UserGame> = withContext(Dispatchers.IO) {
                 RetrofitInstance.userGameApi.getUserGames(userId)
             }
             val completed = userGames.filter { it.status?.equals("Completado", ignoreCase = true) == true }
 
-            // 3) Obtener detalles RAWG en paralelo (limitamos a 20 por rendimiento)
+            // 3) Detalles RAWG en paralelo (máx. 20)
             val rawgIds = completed.map { it.game_rawg_id }.distinct().take(20)
             val details = withContext(Dispatchers.IO) {
                 rawgIds.map { id ->
@@ -90,7 +104,7 @@ fun UserScreen(
             }
             completedGames = details
 
-            // 4) Cargar favorito si existe
+            // 4) Favorito (si hay)
             favoriteGame = null
             val favId = user?.favorite_rawg_game_id
             if (favId != null) {
@@ -98,15 +112,36 @@ fun UserScreen(
                     RetrofitInstance.gameApi.getGameDetails(favId)
                 }
             }
+
+            // 5) Amigos del usuario autenticado (GET /friends)
+            friends = withContext(Dispatchers.IO) {
+                val b = bearer ?: return@withContext emptyList<User>()
+                val res = RetrofitInstance.friendsApi.listFriends(b)
+                if (!res.isSuccessful) emptyList() else
+                    res.body().orEmpty().map { f ->
+                        // FriendLite -> User (rellenamos campos que tu User exige)
+                        User(
+                            id = f.id,
+                            username = f.username ?: "Usuario ${f.id}",
+                            email = "",                          // <- requerido por tu User
+                            avatarUrl = f.avatar_url ?: "",
+                            status = "",                         // <- requerido por tu User (no null)
+                            favorite_rawg_game_id = null         // <- si es Int? pásalo a null
+                        )
+                    }
+            }
+
         } catch (e: Exception) {
             Log.e("UserScreen", "Error cargando datos: ${e.message}", e)
             if (user == null) errorMessage = "No se pudo cargar el usuario"
             completedError = "No se pudieron cargar los juegos completados"
             favoriteError = "No se pudo cargar el juego favorito"
+            friendsError = "No se pudieron cargar los amigos"
         } finally {
             isLoading = false
             isLoadingCompleted = false
             isLoadingFavorite = false
+            isLoadingFriends = false
         }
     }
 
@@ -114,11 +149,9 @@ fun UserScreen(
         isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
-
         errorMessage != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(errorMessage ?: "Error")
         }
-
         user != null -> {
             Box(
                 modifier = Modifier
@@ -186,13 +219,8 @@ fun UserScreen(
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp),
                                     shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Box(Modifier.height(110.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator()
-                                    }
-                                }
+                                ) { Box(Modifier.height(110.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                             }
-
                             favoriteError != null -> {
                                 Text(
                                     favoriteError ?: "Error cargando favorito",
@@ -201,7 +229,6 @@ fun UserScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 )
                             }
-
                             favoriteGame == null -> {
                                 Card(
                                     modifier = Modifier
@@ -220,15 +247,11 @@ fun UserScreen(
                                         Spacer(Modifier.width(12.dp))
                                         Column {
                                             Text("— sin favorito —", style = MaterialTheme.typography.bodyLarge)
-                                            Text(
-                                                "Elige un juego y márcalo con la ⭐",
-                                                style = MaterialTheme.typography.labelSmall
-                                            )
+                                            Text("Elige un juego y márcalo con la ⭐", style = MaterialTheme.typography.labelSmall)
                                         }
                                     }
                                 }
                             }
-
                             else -> {
                                 val game = favoriteGame!!
                                 Card(
@@ -256,20 +279,13 @@ fun UserScreen(
                                             Spacer(Modifier.height(4.dp))
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 repeat(5) {
-                                                    Icon(
-                                                        Icons.Default.Star,
-                                                        contentDescription = "Estrella",
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
+                                                    Icon(Icons.Default.Star, contentDescription = "Estrella",
+                                                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
                                                 }
                                             }
                                             Spacer(Modifier.height(6.dp))
-                                            Text(
-                                                "Ver detalles",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                            Text("Ver detalles", style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary)
                                         }
                                     }
                                 }
@@ -293,11 +309,8 @@ fun UserScreen(
                                         .fillMaxWidth()
                                         .height(140.dp),
                                     contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
+                                ) { CircularProgressIndicator() }
                             }
-
                             completedError != null -> {
                                 Text(
                                     completedError ?: "Error cargando completados",
@@ -306,15 +319,11 @@ fun UserScreen(
                                     modifier = Modifier.padding(vertical = 8.dp)
                                 )
                             }
-
                             completedGames.isEmpty() -> {
-                                Text(
-                                    "Aún no hay juegos completados.",
+                                Text("Aún no hay juegos completados.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
+                                    modifier = Modifier.padding(vertical = 8.dp))
                             }
-
                             else -> {
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -324,9 +333,7 @@ fun UserScreen(
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             modifier = Modifier
-                                                .clickable {
-                                                    navController.navigate("gameDetail/${game.id}")
-                                                }
+                                                .clickable { navController.navigate("gameDetail/${game.id}") }
                                                 .padding(4.dp)
                                         ) {
                                             val imageUrl = game.imageUrl
@@ -349,12 +356,8 @@ fun UserScreen(
                                             )
                                             Row {
                                                 repeat(5) {
-                                                    Icon(
-                                                        Icons.Default.Star,
-                                                        contentDescription = "Estrella",
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(14.dp)
-                                                    )
+                                                    Icon(Icons.Default.Star, contentDescription = "Estrella",
+                                                        tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
                                                 }
                                             }
                                         }
@@ -369,14 +372,68 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Amigos ----
+                        // ---- Amigos (del usuario autenticado) ----
                         Text("Amigos", style = MaterialTheme.typography.titleMedium)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 8.dp)
-                        ) {
-                            listOf("Estrategia", "Acción", "Simulación").forEach { genre ->
-                                AssistChip(onClick = {}, label = { Text(genre) }, shape = RoundedCornerShape(8.dp))
+
+                        when {
+                            isLoadingFriends -> {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(110.dp),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator() }
+                            }
+                            friendsError != null -> {
+                                Text(
+                                    friendsError ?: "Error cargando amigos",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                            friends.isEmpty() -> {
+                                Text(
+                                    "Aún no tiene amigos.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            }
+                            else -> {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                    modifier = Modifier.padding(top = 12.dp)
+                                ) {
+                                    items(friends, key = { it.id }) { friend ->
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier
+                                                .width(88.dp)
+                                                .clickable {
+                                                    navController.navigate("user/${friend.id}")
+                                                }
+                                        ) {
+                                            val avatar = rememberAsyncImagePainter(
+                                                model = if (!friend.avatarUrl.isNullOrBlank())
+                                                    friend.avatarUrl else R.drawable.default_avatar
+                                            )
+                                            Image(
+                                                painter = avatar,
+                                                contentDescription = "Avatar de ${friend.username}",
+                                                modifier = Modifier
+                                                    .size(64.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(
+                                                friend.username,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                textAlign = TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 

@@ -79,4 +79,10 @@ interface FriendsApi {
 
     @GET("friends/requests/outgoing")
     suspend fun listOutgoing(@Header("Authorization") bearer: String): Response<List<OutgoingReq>>
+
+    @GET("friends/of/{userId}")
+    suspend fun listFriendsOf(
+        @Path("userId") userId: Int,
+        @Header("Authorization") bearer: String
+    ): retrofit2.Response<List<FriendLite>>
 }
