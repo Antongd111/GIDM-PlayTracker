@@ -369,8 +369,8 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Géneros más jugados ----
-                        Text("Géneros más jugados", style = MaterialTheme.typography.titleMedium)
+                        // ---- Amigos ----
+                        Text("Amigos", style = MaterialTheme.typography.titleMedium)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.padding(top = 8.dp)
