@@ -3,66 +3,84 @@ package com.example.playtracker.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.playtracker.data.api.RetrofitInstance
+import com.example.playtracker.domain.model.FriendRequest
+import com.example.playtracker.domain.model.User
 import com.example.playtracker.data.repository.FriendsRepository
+import com.example.playtracker.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-// Estados posibles para el botón
 enum class FriendState { NONE, PENDING_SENT, FRIENDS }
 
-data class FriendsUiState(
-    val workingFor: Set<Int> = emptySet(),            // ids en loading
+data class SocialUiState(
+    val workingFor: Set<Int> = emptySet(),            // ids en loading para botón de lista
     val states: Map<Int, FriendState> = emptyMap(),   // estado por userId
     val error: String? = null,
-    val incoming: List<com.example.playtracker.data.api.IncomingReq> = emptyList(),
-    val workingIncoming: Set<Int> = emptySet(),
 
-    )
+    val incoming: List<FriendRequest> = emptyList(),  // solicitudes entrantes (domain)
+    val workingIncoming: Set<Int> = emptySet(),       // ids en loading en el diálogo
 
-class FriendsViewModel(
-    private val repo: FriendsRepository
+    val results: List<User> = emptyList(),            // resultados de búsqueda (domain)
+    val isSearching: Boolean = false
+)
+
+class SocialViewModel(
+    private val users: UserRepository,
+    private val friends: FriendsRepository
 ) : ViewModel() {
 
-    private val _ui = MutableStateFlow(FriendsUiState())
-    val ui: StateFlow<FriendsUiState> = _ui
+    private val _ui = MutableStateFlow(SocialUiState())
+    val ui: StateFlow<SocialUiState> = _ui
 
-    /** Asegura que los usuarios del resultado estén registrados como NONE si no sabemos más. */
-    fun ensureUsers(ids: List<Int>) {
-        if (ids.isEmpty()) return
+    /** Buscar usuarios (no requiere token si tu endpoint es público). */
+    fun search(query: String) = viewModelScope.launch {
+        if (query.isBlank()) {
+            _ui.update { it.copy(results = emptyList(), isSearching = false, error = null) }
+            return@launch
+        }
+        _ui.update { it.copy(isSearching = true, error = null) }
+        runCatching { users.searchUsers(query) }
+            .onSuccess { list ->
+                // Inicializa a NONE y luego hidrata con datos reales (amigos/pendientes)
+                _ui.update { curr ->
+                    val next = curr.states.toMutableMap()
+                    list.forEach { if (it.id !in next) next[it.id] = FriendState.NONE }
+                    curr.copy(results = list, states = next, isSearching = true)
+                }
+            }
+            .onFailure { e ->
+                _ui.update { it.copy(error = e.message, results = emptyList(), isSearching = true) }
+            }
+    }
+
+    /** Hidrata los estados reales (amigos y solicitudes OUTGOING) del resultado. */
+    fun hydrateStatesForResults(bearer: String) = viewModelScope.launch {
+        val resultIds = _ui.value.results.map { it.id }
+        if (resultIds.isEmpty()) return@launch
+
+        val friendsList = friends.listFriends(bearer).getOrElse { emptyList() }
+        val outgoing = friends.listOutgoing(bearer).getOrElse { emptyList() }
+
         _ui.update { curr ->
             val next = curr.states.toMutableMap()
-            ids.forEach { if (it !in next) next[it] = FriendState.NONE }
+            friendsList.forEach { f -> if (f.id in resultIds) next[f.id] = FriendState.FRIENDS }
+            outgoing.forEach { req ->
+                val otherId = req.otherUser.id
+                if (otherId in resultIds) next[otherId] = FriendState.PENDING_SENT
+            }
             curr.copy(states = next)
         }
     }
 
-    /** Hidrata el estado real consultando backend: amigos y solicitudes que yo envié. */
-    fun hydrateStatesForResults(resultIds: List<Int>, bearer: String) {
-        if (resultIds.isEmpty()) return
-        viewModelScope.launch {
-            ensureUsers(resultIds)
-
-            val friends = repo.listFriends(bearer).getOrElse { emptyList() }
-            val outgoing = repo.listOutgoing(bearer).getOrElse { emptyList() }
-
-            _ui.update { curr ->
-                val next = curr.states.toMutableMap()
-                // Amigos
-                friends.forEach { if (it.id in resultIds) next[it.id] = FriendState.FRIENDS }
-                // Solicitudes enviadas por mí
-                outgoing.forEach { req ->
-                    val otherId = req.other_user.id
-                    if (otherId in resultIds) next[otherId] = FriendState.PENDING_SENT
-                }
-                curr.copy(states = next)
-            }
-        }
+    /** Carga solicitudes ENTRANTES reales. */
+    fun loadIncoming(bearer: String) = viewModelScope.launch {
+        val inc = friends.listIncoming(bearer).getOrElse { emptyList() }
+        _ui.update { it.copy(incoming = inc) }
     }
 
-    /** Acción única: según estado actual envía/cancela/unfriend. */
+    /** Acción única por usuario según estado actual: send/cancel/unfriend. */
     fun toggleFriendAction(userId: Int, bearer: String, onSnack: (String) -> Unit) {
         val current = _ui.value.states[userId] ?: FriendState.NONE
         if (_ui.value.workingFor.contains(userId)) return
@@ -72,7 +90,7 @@ class FriendsViewModel(
 
             when (current) {
                 FriendState.NONE -> {
-                    repo.sendRequest(userId, bearer)
+                    friends.sendRequest(userId, bearer)
                         .onSuccess {
                             _ui.update {
                                 it.copy(
@@ -83,14 +101,13 @@ class FriendsViewModel(
                             onSnack("Solicitud enviada")
                         }
                         .onFailure { e ->
-                            // Rehidrata por si el backend dijo “ya existía”
-                            hydrateStatesForResults(listOf(userId), bearer)
+                            hydrateStatesForResults(bearer)
                             _ui.update { it.copy(workingFor = it.workingFor - userId, error = e.message) }
                             onSnack("No se pudo enviar: ${e.message ?: ""}")
                         }
                 }
                 FriendState.PENDING_SENT -> {
-                    repo.cancelRequest(userId, bearer)
+                    friends.cancelRequest(userId, bearer)
                         .onSuccess {
                             _ui.update {
                                 it.copy(
@@ -101,13 +118,13 @@ class FriendsViewModel(
                             onSnack("Solicitud cancelada")
                         }
                         .onFailure { e ->
-                            hydrateStatesForResults(listOf(userId), bearer)
+                            hydrateStatesForResults(bearer)
                             _ui.update { it.copy(workingFor = it.workingFor - userId, error = e.message) }
                             onSnack("No se pudo cancelar: ${e.message ?: ""}")
                         }
                 }
                 FriendState.FRIENDS -> {
-                    repo.unfriend(userId, bearer)
+                    friends.unfriend(userId, bearer)
                         .onSuccess {
                             _ui.update {
                                 it.copy(
@@ -118,7 +135,7 @@ class FriendsViewModel(
                             onSnack("Amistad eliminada")
                         }
                         .onFailure { e ->
-                            hydrateStatesForResults(listOf(userId), bearer)
+                            hydrateStatesForResults(bearer)
                             _ui.update { it.copy(workingFor = it.workingFor - userId, error = e.message) }
                             onSnack("No se pudo eliminar: ${e.message ?: ""}")
                         }
@@ -127,21 +144,13 @@ class FriendsViewModel(
         }
     }
 
-    fun loadIncoming(bearer: String) {
-        viewModelScope.launch {
-            val inc = repo.listIncoming(bearer).getOrElse { emptyList() }
-            _ui.update { it.copy(incoming = inc) }
-        }
-    }
-
     fun acceptIncoming(fromUserId: Int, bearer: String, onSnack: (String) -> Unit) {
         viewModelScope.launch {
             _ui.update { it.copy(workingIncoming = it.workingIncoming + fromUserId) }
-            repo.accept(fromUserId, bearer)
+            friends.accept(fromUserId, bearer)
                 .onSuccess {
-                    // quita de la lista y marca como FRIENDS
                     _ui.update { curr ->
-                        val newList = curr.incoming.filter { it.other_user.id != fromUserId }
+                        val newList = curr.incoming.filter { it.otherUser.id != fromUserId }
                         val newStates = curr.states + (fromUserId to FriendState.FRIENDS)
                         curr.copy(
                             workingIncoming = curr.workingIncoming - fromUserId,
@@ -161,14 +170,13 @@ class FriendsViewModel(
     fun declineIncoming(fromUserId: Int, bearer: String, onSnack: (String) -> Unit) {
         viewModelScope.launch {
             _ui.update { it.copy(workingIncoming = it.workingIncoming + fromUserId) }
-            repo.decline(fromUserId, bearer)
+            friends.decline(fromUserId, bearer)
                 .onSuccess {
                     _ui.update { curr ->
-                        val newList = curr.incoming.filter { it.other_user.id != fromUserId }
+                        val newList = curr.incoming.filter { it.otherUser.id != fromUserId }
                         curr.copy(
                             workingIncoming = curr.workingIncoming - fromUserId,
                             incoming = newList,
-                            // opcional: asegura NONE
                             states = curr.states + (fromUserId to FriendState.NONE)
                         )
                     }
@@ -182,10 +190,12 @@ class FriendsViewModel(
     }
 }
 
-class FriendsViewModelFactory : ViewModelProvider.Factory {
+class SocialViewModelFactory(
+    private val users: UserRepository,
+    private val friends: FriendsRepository
+) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        val repo = FriendsRepository(RetrofitInstance.friendsApi)
-        return FriendsViewModel(repo) as T
+        return SocialViewModel(users, friends) as T
     }
 }

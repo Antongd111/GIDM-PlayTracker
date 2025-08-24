@@ -14,7 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.playtracker.R
-import com.example.playtracker.data.model.User
+import com.example.playtracker.data.remote.dto.user.UserDto
+import com.example.playtracker.domain.model.User
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
 import com.example.playtracker.ui.viewmodel.FriendState
@@ -50,7 +51,7 @@ fun UserListItem(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = user.username,
+                    text = user.name,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )

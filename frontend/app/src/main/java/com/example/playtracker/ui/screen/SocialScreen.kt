@@ -23,50 +23,60 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.playtracker.R
-import com.example.playtracker.data.UserPreferences
-import com.example.playtracker.data.api.IncomingReq
-import com.example.playtracker.data.api.RetrofitInstance
-import com.example.playtracker.data.model.User
+import com.example.playtracker.data.local.datastore.UserPreferences
+import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.repository.FriendsRepository
+import com.example.playtracker.data.repository.UserRepository
+import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
+import com.example.playtracker.data.repository.impl.UserRepositoryImpl
+import com.example.playtracker.domain.model.FriendRequest
+import com.example.playtracker.domain.model.User
 import com.example.playtracker.ui.components.SearchBar
 import com.example.playtracker.ui.components.UserListItem
 import com.example.playtracker.ui.viewmodel.FriendState
-import com.example.playtracker.ui.viewmodel.FriendsViewModel
-import com.example.playtracker.ui.viewmodel.FriendsViewModelFactory
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
-object TokenProvider {
-    var token: String? = null
-}
+import com.example.playtracker.ui.viewmodel.SocialViewModel
+import com.example.playtracker.ui.viewmodel.SocialViewModelFactory
 
 @Composable
-fun SocialScreen(navController: NavHostController) {
+fun SocialScreen(
+    navController: NavHostController,
+    viewModel: SocialViewModel = viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val friendsApi = RetrofitInstance.friendsApi
+                val userApi = RetrofitInstance.userApi
+                val friendsRepo: FriendsRepository = FriendsRepositoryImpl(friendsApi)
+                val userRepo: UserRepository = UserRepositoryImpl(userApi, friendsApi)
+                return SocialViewModel(
+                    users = userRepo,
+                    friends = friendsRepo
+                ) as T
+            }
+        }
+    )
+) {
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer = token?.let { "Bearer $it" }
 
-    val search = remember { mutableStateOf("") }
-    val userList = remember { mutableStateListOf<User>() }
-    val isSearching = remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    val ui by viewModel.ui.collectAsState()
 
-    val friendsVm: FriendsViewModel = viewModel(factory = FriendsViewModelFactory())
-    val friendsUi by friendsVm.ui.collectAsState()
-
+    var search by remember { mutableStateOf("") }
     var showIncomingDialog by remember { mutableStateOf(false) }
 
-    fun snack(msg: String) =
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+    fun snack(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 
-    // Cargar solicitudes entrantes reales al tener token
+    // Cargar solicitudes entrantes cuando haya token
     LaunchedEffect(bearer) {
         val b = bearer ?: return@LaunchedEffect
-        friendsVm.loadIncoming(b)
+        viewModel.loadIncoming(b)
     }
 
     Surface(
@@ -78,42 +88,26 @@ fun SocialScreen(navController: NavHostController) {
         Column(Modifier.padding(16.dp)) {
 
             SearchBar(
-                value = search.value,
-                onValueChange = { search.value = it },
+                value = search,
+                onValueChange = { search = it },
                 onSearch = {
-                    scope.launch {
-                        try {
-                            val result = withContext(Dispatchers.IO) {
-                                RetrofitInstance.userApi.searchUsers(search.value)
-                            }
-                            userList.clear()
-                            userList.addAll(result)
-                            isSearching.value = true
-
-                            // Inicializa a NONE y luego hidrata con datos reales
-                            friendsVm.ensureUsers(result.map { it.id })
-                            bearer?.let { b ->
-                                friendsVm.hydrateStatesForResults(result.map { it.id }, b)
-                            }
-                        } catch (_: Exception) {
-                            snack("No se pudo buscar usuarios")
-                        }
-                    }
+                    viewModel.search(search)
+                    bearer?.let { b -> viewModel.hydrateStatesForResults(b) }
                 }
             )
 
             Spacer(Modifier.height(12.dp))
 
-            // Banner de solicitudes entrantes (solo si hay)
-            if (friendsUi.incoming.isNotEmpty()) {
+            // Banner de solicitudes entrantes
+            if (ui.incoming.isNotEmpty()) {
                 IncomingRequestsBanner(
-                    count = friendsUi.incoming.size,
+                    count = ui.incoming.size,
                     onClick = { showIncomingDialog = true }
                 )
                 Spacer(Modifier.height(12.dp))
             }
 
-            if (userList.isEmpty()) {
+            if (ui.results.isEmpty()) {
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -121,16 +115,16 @@ fun SocialScreen(navController: NavHostController) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (isSearching.value) "No hay resultados" else "Busca cualquier persona...",
+                        text = if (ui.isSearching) "No hay resultados" else "Busca cualquier persona...",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                 }
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    items(userList, key = { it.id }) { user ->
-                        val isWorking = friendsUi.workingFor.contains(user.id)
-                        val state = friendsUi.states[user.id] ?: FriendState.NONE
+                    items(ui.results, key = { it.id }) { user: User ->
+                        val isWorking = ui.workingFor.contains(user.id)
+                        val state = ui.states[user.id] ?: FriendState.NONE
 
                         UserListItem(
                             user = user,
@@ -138,10 +132,11 @@ fun SocialScreen(navController: NavHostController) {
                             state = state,
                             onMainButtonClick = {
                                 val b = bearer ?: return@UserListItem
-                                friendsVm.toggleFriendAction(
+                                viewModel.toggleFriendAction(
                                     userId = user.id,
                                     bearer = b,
-                                ) { snack(it) }
+                                    onSnack = ::snack
+                                )
                             },
                             onClick = { navController.navigate("user/${user.id}") }
                         )
@@ -150,20 +145,19 @@ fun SocialScreen(navController: NavHostController) {
             }
         }
 
-        // Diálogo ancho con avatar + iconos (usa datos reales)
         if (showIncomingDialog) {
             IncomingRequestsDialog(
                 isOpen = showIncomingDialog,
                 onDismiss = { showIncomingDialog = false },
-                requests = friendsUi.incoming,
-                working  = friendsUi.workingIncoming,
+                requests = ui.incoming,
+                working = ui.workingIncoming,
                 onAccept = onAccept@ { fromUserId ->
                     val b = bearer ?: return@onAccept
-                    friendsVm.acceptIncoming(fromUserId, b) { snack(it) }
+                    viewModel.acceptIncoming(fromUserId, b, ::snack)
                 },
                 onDecline = onDecline@ { fromUserId ->
                     val b = bearer ?: return@onDecline
-                    friendsVm.declineIncoming(fromUserId, b) { snack(it) }
+                    viewModel.declineIncoming(fromUserId, b, ::snack)
                 }
             )
         }
@@ -214,7 +208,7 @@ private fun IncomingRequestsBanner(
 private fun IncomingRequestsDialog(
     isOpen: Boolean,
     onDismiss: () -> Unit,
-    requests: List<IncomingReq>,
+    requests: List<FriendRequest>,
     working: Set<Int>,
     onAccept: (fromUserId: Int) -> Unit,
     onDecline: (fromUserId: Int) -> Unit
@@ -222,7 +216,7 @@ private fun IncomingRequestsDialog(
     if (!isOpen) return
 
     val config = LocalConfiguration.current
-    val maxDialogHeight = config.screenHeightDp.dp * 0.8f // máx. 80% alto pantalla
+    val maxDialogHeight = config.screenHeightDp.dp * 0.8f
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -264,8 +258,8 @@ private fun IncomingRequestsDialog(
                             .weight(1f, fill = true),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(requests, key = { it.other_user.id }) { req ->
-                            val uid = req.other_user.id
+                        items(requests, key = { it.otherUser.id }) { req ->
+                            val uid = req.otherUser.id
                             val isBusy = working.contains(uid)
 
                             ElevatedCard(
@@ -280,7 +274,6 @@ private fun IncomingRequestsDialog(
                                         .padding(horizontal = 14.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Avatar (usa drawable por defecto; sustituye si cargas URL)
                                     Image(
                                         painter = painterResource(R.drawable.default_avatar),
                                         contentDescription = "Avatar",
@@ -293,7 +286,7 @@ private fun IncomingRequestsDialog(
 
                                     Column(Modifier.weight(1f)) {
                                         Text(
-                                            text = req.other_user.username ?: "Usuario $uid",
+                                            text = req.otherUser.name,
                                             style = MaterialTheme.typography.titleMedium
                                         )
                                         Text(

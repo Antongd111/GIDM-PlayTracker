@@ -1,8 +1,8 @@
-package com.example.playtracker.data.model
+package com.example.playtracker.data.remote.dto.user
 
 import com.google.gson.annotations.SerializedName
 
-data class User(
+data class UserDto(
     val id: Int,
     val email: String,
     val username: String,

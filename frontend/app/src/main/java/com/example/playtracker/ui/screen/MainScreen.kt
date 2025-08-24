@@ -1,6 +1,5 @@
 package com.example.playtracker.ui.screen
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,14 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navOptions
-import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.data.local.datastore.UserPreferences
 
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
@@ -147,7 +144,7 @@ fun MainScreen(parentNavController: NavHostController) {
                 navController = navController,
                 startDestination = "home"
             ) {
-                composable("home") { HomeScreen(parentNavController) }
+                composable("home") { GamesScreen(parentNavController) }
                 composable("social") { SocialScreen(parentNavController) }
                 composable("user/{userId}") { backStackEntry ->
                     val userId = backStackEntry.arguments?.getString("userId")?.toIntOrNull()

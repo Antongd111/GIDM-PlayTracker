@@ -17,7 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.playtracker.data.model.Game
+import com.example.playtracker.data.remote.dto.game.GameDto
+import com.example.playtracker.domain.model.Game
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
 

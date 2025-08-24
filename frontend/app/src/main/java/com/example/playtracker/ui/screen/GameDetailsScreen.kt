@@ -1,6 +1,5 @@
 package com.example.playtracker.ui.screen
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -26,15 +25,23 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
-import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.data.local.datastore.UserPreferences
+import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
 import com.example.playtracker.ui.viewmodel.GameDetailViewModel
 import kotlinx.coroutines.flow.firstOrNull
 
 @Composable
 fun GameDetailScreen(
-    viewModel: GameDetailViewModel,
     gameId: Long,
+    viewModel: GameDetailViewModel = viewModel(
+        factory = GameDetailViewModel.Factory(
+            gameApi = RetrofitInstance.gameApi,
+            userGameRepo = UserGameRepositoryImpl(RetrofitInstance.userGameApi, RetrofitInstance.gameApi)
+        )
+    )
 ) {
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
@@ -240,54 +247,54 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Opiniones simuladas
-                Text(
-                    text = "Opiniones",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    gameDetail.similarGames.forEach { similar ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Image(
-                                    painter = rememberAsyncImagePainter(similar.imageUrl),
-                                    contentDescription = similar.title,
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(similar.title, style = MaterialTheme.typography.bodyMedium)
-                                    Row {
-                                        repeat(5) {
-                                            Icon(
-                                                imageVector = Icons.Default.Star,
-                                                contentDescription = "Star",
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                    Text(
-                                        "Juego similar recomendado",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+//                // Opiniones simuladas
+//                Text(
+//                    text = "Opiniones",
+//                    style = MaterialTheme.typography.titleMedium,
+//                    modifier = Modifier
+//                        .align(Alignment.CenterHorizontally)
+//                        .padding(horizontal = 16.dp, vertical = 10.dp),
+//                )
+//                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+//                    gameDetail.similarGames.forEach { similar ->
+//                        Card(
+//                            modifier = Modifier.fillMaxWidth(),
+//                            shape = RoundedCornerShape(12.dp)
+//                        ) {
+//                            Row(
+//                                modifier = Modifier.padding(12.dp),
+//                                verticalAlignment = Alignment.CenterVertically
+//                            ) {
+//                                Image(
+//                                    painter = rememberAsyncImagePainter(similar.imageUrl),
+//                                    contentDescription = similar.title,
+//                                    modifier = Modifier
+//                                        .size(40.dp)
+//                                        .clip(CircleShape)
+//                                )
+//                                Spacer(modifier = Modifier.width(8.dp))
+//                                Column {
+//                                    Text(similar.title, style = MaterialTheme.typography.bodyMedium)
+//                                    Row {
+//                                        repeat(5) {
+//                                            Icon(
+//                                                imageVector = Icons.Default.Star,
+//                                                contentDescription = "Star",
+//                                                tint = MaterialTheme.colorScheme.primary,
+//                                                modifier = Modifier.size(16.dp)
+//                                            )
+//                                        }
+//                                    }
+//                                    Text(
+//                                        "Juego similar recomendado",
+//                                        style = MaterialTheme.typography.bodySmall,
+//                                        modifier = Modifier.padding(top = 4.dp)
+//                                    )
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
             }
         }
     }

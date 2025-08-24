@@ -1,4 +1,4 @@
-package com.example.playtracker.data.api
+package com.example.playtracker.data.remote.service
 
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory

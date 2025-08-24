@@ -1,6 +1,6 @@
-package com.example.playtracker.data.model
+package com.example.playtracker.data.remote.dto.game
 
-data class GameDetail(
+data class GameDetailDto(
     val id: Long,
     val title: String,
     val description: String,
@@ -18,11 +18,4 @@ data class GameDetail(
     val website: String?,
     val screenshots: List<String>,
     val videos: List<String>,
-    val similarGames: List<SimilarGame>
-)
-
-data class SimilarGame(
-    val id: Long,
-    val title: String,
-    val imageUrl: String
 )

@@ -9,8 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.playtracker.data.api.RetrofitInstance
-import com.example.playtracker.data.model.LoginRequest
+import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.remote.dto.auth.LoginRequestDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -21,7 +21,7 @@ import com.example.playtracker.R
 import com.example.playtracker.ui.theme.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.platform.LocalContext
-import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.data.local.datastore.UserPreferences
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -80,7 +80,7 @@ fun LoginScreen(navController: NavController) {
                 onClick = {
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
-                            val response = RetrofitInstance.api.login(LoginRequest(email, password))
+                            val response = RetrofitInstance.api.login(LoginRequestDto(email, password))
                             withContext(Dispatchers.Main) {
                                 if (response.isSuccessful) {
                                     val token = response.body()?.access_token ?: ""

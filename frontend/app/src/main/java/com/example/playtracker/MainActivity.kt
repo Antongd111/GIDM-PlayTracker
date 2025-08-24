@@ -7,7 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.navigation.compose.rememberNavController
-import com.example.playtracker.data.UserPreferences
+import com.example.playtracker.data.local.datastore.UserPreferences
 import com.example.playtracker.navigation.AppNavigation
 import com.example.playtracker.ui.theme.PlayTrackerTheme
 import kotlinx.coroutines.Dispatchers
