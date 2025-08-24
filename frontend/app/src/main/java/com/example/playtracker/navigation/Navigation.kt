@@ -10,9 +10,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.playtracker.data.remote.service.RetrofitInstance
 import com.example.playtracker.data.repository.FriendsRepository
+import com.example.playtracker.data.repository.ReviewsRepository
 import com.example.playtracker.data.repository.UserGameRepository
 import com.example.playtracker.data.repository.UserRepository
 import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
+import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
 import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
 import com.example.playtracker.data.repository.impl.UserRepositoryImpl
 import com.example.playtracker.ui.screen.GameDetailScreen
@@ -54,19 +56,30 @@ fun AppNavigation(navController: NavHostController, startDestination: String) {
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         val gameApi = RetrofitInstance.gameApi
                         val userGameApi = RetrofitInstance.userGameApi
+
                         val userGameRepo: UserGameRepository = UserGameRepositoryImpl(
-                            gameApi = gameApi,
-                            userGameApi = userGameApi
+                            userGameApi = userGameApi,
+                            gameApi = gameApi
                         )
-                        return GameDetailViewModel(gameApi, userGameRepo) as T
+
+                        // 👇 NUEVO: repo de reviews
+                        val reviewsRepo: ReviewsRepository = ReviewsRepositoryImpl(
+                            RetrofitInstance.reviewsApi
+                        )
+
+                        return GameDetailViewModel(
+                            gameApi = gameApi,
+                            userGameRepo = userGameRepo,
+                            reviewsRepo = reviewsRepo
+                        ) as T
                     }
                 },
                 key = "GameDetailVM_$gameId"
             )
 
             GameDetailScreen(
-                viewModel = viewModel,
-                gameId = gameId
+                gameId = gameId,
+                viewModel = viewModel
             )
         }
     }

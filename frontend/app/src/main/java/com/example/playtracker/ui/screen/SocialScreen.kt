@@ -40,7 +40,6 @@ import com.example.playtracker.ui.components.SearchBar
 import com.example.playtracker.ui.components.UserListItem
 import com.example.playtracker.ui.viewmodel.FriendState
 import com.example.playtracker.ui.viewmodel.SocialViewModel
-import com.example.playtracker.ui.viewmodel.SocialViewModelFactory
 
 @Composable
 fun SocialScreen(
@@ -79,6 +78,14 @@ fun SocialScreen(
         viewModel.loadIncoming(b)
     }
 
+    // 🔁 Rehidratar estados si ya hay resultados y el token llega después
+    LaunchedEffect(bearer) {
+        val b = bearer ?: return@LaunchedEffect
+        if (ui.results.isNotEmpty()) {
+            viewModel.hydrateStatesForResults(b)
+        }
+    }
+
     Surface(
         modifier = Modifier
             .fillMaxSize()
@@ -91,8 +98,10 @@ fun SocialScreen(
                 value = search,
                 onValueChange = { search = it },
                 onSearch = {
-                    viewModel.search(search)
-                    bearer?.let { b -> viewModel.hydrateStatesForResults(b) }
+                    viewModel.search(search)               // hace la búsqueda
+                    bearer?.let { b ->                     // si ya hay token, hidrata inmediatamente
+                        viewModel.hydrateStatesForResults(b)
+                    }
                 }
             )
 

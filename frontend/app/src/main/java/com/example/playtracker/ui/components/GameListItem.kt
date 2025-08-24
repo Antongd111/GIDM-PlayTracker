@@ -66,21 +66,5 @@ fun GameListItem(
                 color = TextoClaro
             )
         }
-
-        // Botón lateral (independiente del click del item)
-        Button(
-            onClick = { /* De momento no hace nada */ },
-            modifier = Modifier
-                .height(90.dp)
-                .width(30.dp),
-            contentPadding = PaddingValues(0.dp),
-            shape = RoundedCornerShape(0.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = AzulElectrico,
-                contentColor = TextoClaro
-            )
-        ) {
-            Text("+", fontSize = 24.sp, textAlign = TextAlign.Center)
-        }
     }
 }
