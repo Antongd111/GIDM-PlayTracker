@@ -69,7 +69,7 @@ class GameDetailViewModel(
 
     fun submitReview(
         gameId: Long,
-        score0to10: Int?,
+        score0to10: Float?,
         notes: String?,
         bearer: String,
         onDone: () -> Unit

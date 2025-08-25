@@ -6,6 +6,7 @@ import com.example.playtracker.data.repository.ReviewsRepository
 import com.example.playtracker.domain.model.GameReviews
 import com.example.playtracker.domain.model.Review
 import com.example.playtracker.data.remote.mapper.toDomain
+import kotlin.math.roundToInt
 
 class ReviewsRepositoryImpl(
     private val api: ReviewsApi
@@ -13,13 +14,16 @@ class ReviewsRepositoryImpl(
 
     override suspend fun upsert(
         gameId: Long,
-        score0to10: Int?,
+        score0to10: Float?,
         notes: String?,
         containsSpoilers: Boolean,
         bearer: String
     ): Result<Review> = runCatching {
         val body = ReviewUpsertInDto(
-            score = score0to10?.coerceIn(0, 10)?.times(10),
+            // 7.5 -> 75
+            score = score0to10
+                ?.coerceIn(0f, 10f)
+                ?.let { (it * 10f).roundToInt() },
             notes = notes?.ifBlank { null },
             contains_spoilers = containsSpoilers
         )

@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarHalf
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -42,6 +44,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.example.playtracker.domain.model.Review
+import kotlin.math.roundToInt
 
 @Composable
 fun GameDetailScreen(
@@ -62,36 +65,23 @@ fun GameDetailScreen(
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer: String? = token?.let { "Bearer $it" }
 
-    // Repo de reviews (usa el mismo Retrofit con tu interceptor de auth)
+    // Repo de reviews
     val reviewsRepo = remember { ReviewsRepositoryImpl(RetrofitInstance.reviewsApi) }
     val scope = rememberCoroutineScope()
 
-    // Carga del detalle del juego (no depende de userId)
+    // Carga del detalle del juego + reseñas
     LaunchedEffect(gameId, bearer) {
         viewModel.loadGameDetail(gameId)
-
-        // DEBUG: comprueba si llega token
-        android.util.Log.d("GameDetail", "bearer is null? ${bearer == null}")
-
-        // LLAMA solo si hay token
-        if (bearer != null) {
-            viewModel.loadReviews(gameId, bearer)
-        }
+        if (bearer != null) viewModel.loadReviews(gameId, bearer)
     }
 
-    // Lee userId del DataStore una vez
+    // userId -> userGame
     LaunchedEffect(Unit) {
         userId = prefs.userIdFlow.firstOrNull()
-        userId?.let { uid ->
-            viewModel.getUserGame(uid, gameId)
-        }
+        userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
     }
-
-    // Si más tarde cambia userId (p.ej. tras login), vuelve a cargar el userGame
     LaunchedEffect(userId) {
-        userId?.let { uid ->
-            viewModel.getUserGame(uid, gameId)
-        }
+        userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
     }
 
     val gameDetail = viewModel.gameDetail
@@ -105,13 +95,11 @@ fun GameDetailScreen(
                 CircularProgressIndicator()
             }
         }
-
         error != null -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Error: $error")
             }
         }
-
         gameDetail != null -> {
             Column(
                 modifier = Modifier
@@ -158,13 +146,8 @@ fun GameDetailScreen(
                 ) {
                     statusOptions.forEach { status ->
                         val isSelected = currentStatus == status
-
                         Button(
-                            onClick = {
-                                userId?.let { uid ->
-                                    viewModel.updateGameStatus(uid, gameId, status)
-                                }
-                            },
+                            onClick = { userId?.let { uid -> viewModel.updateGameStatus(uid, gameId, status) } },
                             enabled = canUpdate,
                             modifier = Modifier
                                 .weight(1f)
@@ -172,18 +155,12 @@ fun GameDetailScreen(
                             contentPadding = PaddingValues(4.dp),
                             shape = RoundedCornerShape(0.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isSelected)
-                                    MaterialTheme.colorScheme.primary
-                                else
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = if (isSelected)
-                                    Color.White
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                containerColor = if (isSelected) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = if (isSelected) Color.White
+                                else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        ) {
-                            Text(status, fontSize = 12.sp)
-                        }
+                        ) { Text(status, fontSize = 12.sp) }
                     }
                 }
 
@@ -191,7 +168,6 @@ fun GameDetailScreen(
 
                 // Descripción con "ver más"
                 var expanded by remember { mutableStateOf(false) }
-
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Text(
                         text = gameDetail.description ?: "Sin descripción.",
@@ -200,7 +176,6 @@ fun GameDetailScreen(
                         maxLines = if (expanded) Int.MAX_VALUE else 10,
                         overflow = TextOverflow.Clip
                     )
-
                     if (!expanded) {
                         Box(
                             modifier = Modifier
@@ -218,7 +193,6 @@ fun GameDetailScreen(
                         )
                     }
                 }
-
                 if (!gameDetail.description.isNullOrEmpty() && gameDetail.description.length > 200) {
                     TextButton(
                         onClick = { expanded = !expanded },
@@ -226,12 +200,7 @@ fun GameDetailScreen(
                             .padding(horizontal = 16.dp)
                             .alpha(0.6f)
                             .align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            if (expanded) "Ver menos" else "Ver más",
-                            textDecoration = TextDecoration.Underline
-                        )
-                    }
+                    ) { Text(if (expanded) "Ver menos" else "Ver más", textDecoration = TextDecoration.Underline) }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -242,7 +211,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Galería de imágenes
+                // Galería
                 Text(
                     text = "Galería",
                     style = MaterialTheme.typography.titleMedium,
@@ -274,9 +243,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // =======================
                 // Opiniones (carrusel)
-                // =======================
                 ReviewsSection(
                     title = "Opiniones",
                     reviews = viewModel.reviews,
@@ -284,56 +251,35 @@ fun GameDetailScreen(
                     error = viewModel.reviewsError
                 )
 
-                // =======================
-                // Opiniones (UI real)
-                // =======================
-
-                // Preview muy simple de tu reseña actual (si existe en userGame)
+                // Tu reseña (tarjeta bonita coherente con 5 estrellas)
                 if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) {
-                    Column(Modifier.padding(horizontal = 16.dp)) {
-                        Text("Tu reseña", style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(4.dp))
-                        val stars = (userGame?.score ?: 0) / 10 // 0..10
-                        Row {
-                            repeat(10) { i ->
-                                val filled = (i + 1) <= stars
-                                Icon(
-                                    imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
-                                    contentDescription = null,
-                                    tint = if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                        if (!userGame?.notes.isNullOrBlank()) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(userGame?.notes ?: "", style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-
+                    YourReviewCard(
+                        score0to100 = userGame?.score ?: 0,
+                        notes = userGame?.notes.orEmpty()
+                    )
                     Spacer(Modifier.height(12.dp))
                 }
 
-                // Botón para escribir/editar reseña
+                // Botón escribir/editar reseña
                 var showReviewSheet by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
                         if (userId == null) {
                             Toast.makeText(context, "Inicia sesión para reseñar", Toast.LENGTH_SHORT).show()
-                        } else {
-                            showReviewSheet = true
-                        }
+                        } else showReviewSheet = true
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                ) { Text(if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) "Editar reseña" else "Escribir reseña") }
+                ) {
+                    Text(if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) "Editar reseña" else "Escribir reseña")
+                }
 
                 Spacer(Modifier.height(24.dp))
 
                 if (showReviewSheet) {
-                    // Prefill con lo que tengas guardado
-                    var tempScore by rememberSaveable { mutableStateOf((userGame?.score ?: 0) / 10) } // 0..10
+                    // Slider 0..100
+                    var tempScore100 by rememberSaveable { mutableStateOf(userGame?.score ?: 0) } // 0..100
                     var tempNotes by rememberSaveable { mutableStateOf(userGame?.notes ?: "") }
                     var isSaving by remember { mutableStateOf(false) }
                     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -351,10 +297,27 @@ fun GameDetailScreen(
                         ) {
                             Text("Tu reseña", style = MaterialTheme.typography.titleLarge)
 
-                            Text("Puntuación (0–10)", style = MaterialTheme.typography.labelLarge)
-                            StarRating(
-                                value0to10 = tempScore,
-                                onChange = { tempScore = it }
+                            // --- Slider + preview ---
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Puntuación", style = MaterialTheme.typography.labelLarge)
+                                Text(String.format("%.1f / 10", tempScore100 / 10f))
+                            }
+
+                            Slider(
+                                value = tempScore100.toFloat(),
+                                onValueChange = { tempScore100 = it.roundToInt().coerceIn(0, 100) },
+                                valueRange = 0f..100f,
+                                steps = 99
+                            )
+
+                            // Preview 5⭐ con medias
+                            FiveStarRating(
+                                score0to10 = tempScore100 / 10f,
+                                starSize = 22.dp
                             )
 
                             OutlinedTextField(
@@ -367,9 +330,7 @@ fun GameDetailScreen(
                                 maxLines = 6
                             )
 
-                            errorMsg?.let {
-                                Text(it, color = MaterialTheme.colorScheme.error)
-                            }
+                            errorMsg?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -389,18 +350,18 @@ fun GameDetailScreen(
                                         scope.launch {
                                             try {
                                                 val b = bearer ?: error("Debes iniciar sesión")
-                                                // Llamada real al backend (Result -> excepción si falla)
+
+                                                // Envío en 0..10 ENTERO para encajar con tu repo actual:
+                                                val score0to10Float = tempScore100 / 10f
                                                 reviewsRepo.upsert(
                                                     gameId = gameId,
-                                                    score0to10 = tempScore,
+                                                    score0to10 = score0to10Float,   // <- Float
                                                     notes = tempNotes,
                                                     bearer = b
                                                 ).getOrThrow()
 
                                                 Toast.makeText(context, "Reseña guardada", Toast.LENGTH_SHORT).show()
                                                 showReviewSheet = false
-
-                                                // refrescar userGame para ver el preview actualizado
                                                 userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
                                             } catch (e: Exception) {
                                                 errorMsg = e.message ?: "Error desconocido"
@@ -426,33 +387,90 @@ fun GameDetailScreen(
                         }
                     }
                 }
-
-                // (Aquí podrías más adelante listar reseñas de otros usuarios + likes)
             }
         }
     }
 }
 
-/** Rating con 10 estrellas (0..10). */
+/** Tarjeta compacta para "Tu reseña" usando 5 estrellas con medias. */
 @Composable
-private fun StarRating(
-    value0to10: Int,
-    onChange: (Int) -> Unit
+private fun YourReviewCard(
+    score0to100: Int,
+    notes: String,
+    modifier: Modifier = Modifier
 ) {
-    Row {
-        for (i in 1..10) {
-            val filled = i <= value0to10
-            IconButton(onClick = { onChange(i) }) {
-                Icon(
-                    imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
-                    contentDescription = null,
-                    tint = if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val surface = MaterialTheme.colorScheme.surface
+    val overlay = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f)
+
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 16.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp
+    ) {
+        Column(
+            Modifier
+                .background(Brush.verticalGradient(listOf(surface, overlay, surface)))
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Tu reseña", style = MaterialTheme.typography.titleMedium)
+                FiveStarRating(score0to10 = (score0to100 / 10f), starSize = 16.dp)
+            }
+            if (notes.isNotBlank()) {
+                Text(notes, style = MaterialTheme.typography.bodyMedium, lineHeight = 18.sp)
+            } else {
+                Text(
+                    "Sin comentario.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
 
+@Composable
+fun FiveStarRating(
+    score0to10: Float,
+    modifier: Modifier = Modifier,
+    starSize: Dp = 20.dp,
+    tint: Color = MaterialTheme.colorScheme.primary
+) {
+    // Paso 1: convertir 0..10 a 0..5
+    val raw5 = (score0to10 / 2f).coerceIn(0f, 5f)
+    // Paso 2: cuantizar a saltos de 0.5 (redondeo estándar)
+    val q5 = (raw5 * 2f).roundToInt() / 2f  // 2.76 -> 3.0, 2.24 -> 2.0, 2.5 -> 2.5
+
+    Row(modifier = modifier) {
+        repeat(5) { i ->
+            val idx = i + 1
+            val full = q5 >= idx
+            val half = !full && q5 >= idx - 0.5f
+
+            val icon = when {
+                full -> Icons.Filled.Star
+                half -> Icons.Filled.StarHalf
+                else -> Icons.Outlined.Star
+            }
+            val starTint = if (full || half) tint else MaterialTheme.colorScheme.onSurfaceVariant
+
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = starTint,
+                modifier = Modifier.size(starSize)
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -473,9 +491,12 @@ fun ReviewsSection(
 
         when {
             isLoading -> {
-                Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
+                ) { CircularProgressIndicator() }
             }
             error != null -> {
                 Text(
@@ -515,7 +536,7 @@ private fun ReviewsCarousel(reviews: List<Review>) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(180.dp) // fija una altura razonable para la tarjeta
+            .height(180.dp)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -527,12 +548,11 @@ private fun ReviewsCarousel(reviews: List<Review>) {
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth()
-                    .wrapContentHeight()  // deja que la tarjeta crezca dentro de los 180dp
+                    .wrapContentHeight()
             )
         }
     }
 
-    // Indicadores (sin intrinsics)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -561,7 +581,6 @@ private fun ReviewCard(
     review: Review,
     modifier: Modifier = Modifier
 ) {
-    // colores suaves tipo tarjeta
     val surface = MaterialTheme.colorScheme.surface
     val overlay = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
 
@@ -574,22 +593,17 @@ private fun ReviewCard(
         Box(
             Modifier
                 .background(
-                    Brush.verticalGradient(
-                        listOf(surface, overlay, surface)
-                    )
+                    Brush.verticalGradient(listOf(surface, overlay, surface))
                 )
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-
-                // Cabecera: avatar + nombre + estrellas
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // avatar (si no tienes url, usa un círculo plano)
                         Box(
                             Modifier
                                 .size(40.dp)
@@ -597,29 +611,16 @@ private fun ReviewCard(
                                 .background(MaterialTheme.colorScheme.primaryContainer)
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            review.username ?: "Usuario",
-                            style = MaterialTheme.typography.titleMedium
-                        )
+                        Text(review.username ?: "Usuario", style = MaterialTheme.typography.titleMedium)
                     }
 
-                    // estrellas 0..10 -> 5 estrellas (medias si quieres; aquí llenas 0..5)
-                    val stars5 = ((review.score0to10 ?: 0) / 2f).coerceIn(0f, 5f)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        repeat(5) { i ->
-                            val filled = i + 1 <= stars5
-                            Icon(
-                                imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
-                                contentDescription = null,
-                                tint = if (filled) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
+                    FiveStarRating(
+                        score0to10 = (review.score0to10 ?: 0).toFloat(),
+                        starSize = 18.dp,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
 
-                // Texto reseña
                 if (!review.notes.isNullOrBlank()) {
                     Text(
                         review.notes!!,

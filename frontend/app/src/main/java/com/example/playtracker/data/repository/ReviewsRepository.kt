@@ -6,7 +6,7 @@ import com.example.playtracker.domain.model.Review
 interface ReviewsRepository {
     suspend fun upsert(
         gameId: Long,
-        score0to10: Int?,
+        score0to10: Float?,
         notes: String?,
         containsSpoilers: Boolean = false,
         bearer: String

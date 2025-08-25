@@ -207,34 +207,54 @@ fun UserScreen(
                                 modifier = Modifier.padding(vertical = 8.dp)
                             ) {
                                 items(ui.completed, key = { it.id }) { game: Game ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    Card(
+                                        onClick = { navController.navigate("gameDetail/${game.id}") },
                                         modifier = Modifier
-                                            .clickable { navController.navigate("gameDetail/${game.id}") }
-                                            .padding(4.dp)
+                                            .width(140.dp) // ancho fijo cómodo
+                                            .wrapContentHeight(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                                     ) {
-                                        val imageUrl = game.imageUrl
-                                        Image(
-                                            painter = rememberAsyncImagePainter(
-                                                model = if (!imageUrl.isNullOrBlank()) imageUrl else R.drawable.default_avatar
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .height(120.dp)
-                                                .width(100.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Text(
-                                            game.title,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            modifier = Modifier.width(100.dp),
-                                            maxLines = 1,
-                                            textAlign = TextAlign.Center
-                                        )
-                                        Row {
-                                            repeat(5) {
-                                                Icon(Icons.Default.Star, contentDescription = "Estrella",
-                                                    tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.padding(8.dp)
+                                        ) {
+                                            val imageUrl = game.imageUrl
+                                            Image(
+                                                painter = rememberAsyncImagePainter(
+                                                    model = if (!imageUrl.isNullOrBlank()) imageUrl else R.drawable.default_avatar
+                                                ),
+                                                contentDescription = null,
+                                                modifier = Modifier
+                                                    .height(120.dp)
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(8.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                game.title,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                maxLines = 1,
+                                                textAlign = TextAlign.Center
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Row(
+                                                horizontalArrangement = Arrangement.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                repeat(5) {
+                                                    Icon(
+                                                        Icons.Default.Star,
+                                                        contentDescription = "Estrella",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(14.dp)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
