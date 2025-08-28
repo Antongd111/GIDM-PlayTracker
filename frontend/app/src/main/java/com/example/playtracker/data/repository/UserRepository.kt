@@ -8,4 +8,5 @@ interface UserRepository {
     suspend fun getUser(id: Int): User
     suspend fun searchUsers(query: String): List<User>
     suspend fun getFriendsOf(userId: Int, bearer: String): List<Friend>
+    suspend fun updateUserProfile(name: String, status: String?, bearer: String): User
 }

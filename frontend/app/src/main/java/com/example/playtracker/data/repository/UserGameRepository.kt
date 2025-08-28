@@ -8,4 +8,5 @@ interface UserGameRepository {
     suspend fun getUserGame(userId: Int, rawgId: Long): UserGame?
     suspend fun upsertUserGame(userId: Int, rawgId: Long, newStatus: String): UserGame
     suspend fun deleteUserGame(userId: Int, rawgId: Long)
+    suspend fun listByUser(userId: Int): List<UserGame>
 }

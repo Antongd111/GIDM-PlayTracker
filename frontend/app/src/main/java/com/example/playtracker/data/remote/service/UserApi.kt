@@ -1,8 +1,11 @@
 package com.example.playtracker.data.remote.service
 
+import com.example.playtracker.data.remote.dto.user.UpdateUserDto
 import com.example.playtracker.data.remote.dto.user.UserDto
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Header
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -19,4 +22,11 @@ interface UserApi {
     // Obtener perfil de un usuario por ID
     @GET("users/{id}")
     suspend fun getUserById(@Path("id") id: Int): UserDto
+
+    @PUT("users/{id}")
+    suspend fun updateUserById(
+        @Path("id") id: Int,
+        @Body body: UpdateUserDto,
+        @Header("Authorization") token: String
+    ): UserDto
 }

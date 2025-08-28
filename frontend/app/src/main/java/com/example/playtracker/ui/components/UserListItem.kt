@@ -2,6 +2,7 @@ package com.example.playtracker.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable // ⬅️ AÑADE ESTE IMPORT
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -14,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.playtracker.R
-import com.example.playtracker.data.remote.dto.user.UserDto
 import com.example.playtracker.domain.model.User
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
@@ -37,11 +37,15 @@ fun UserListItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // ⬇️ HAZ CLICKABLE SOLO EL BLOQUE IZQUIERDO (avatar + textos)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .weight(1f)
                 .padding(end = 12.dp)
+                .let { base ->
+                    if (onClick != null) base.clickable { onClick() } else base
+                }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.default_avatar),

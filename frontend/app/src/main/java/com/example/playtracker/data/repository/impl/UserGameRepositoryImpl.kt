@@ -15,20 +15,19 @@ class UserGameRepositoryImpl(
     private val gameApi: GameApi
 ) : UserGameRepository {
 
+    override suspend fun listByUser(userId: Int): List<UserGame> =
+        userGameApi.getUserGames(userId).map { it.toDomain() }
+
     override suspend fun getCompletedGames(userId: Int, bearer: String): List<Game> {
-        // 1) obtener user_games del backend
-        val userGames = userGameApi.getUserGames(userId)
+        // ✅ Evita pedir dos veces: reutiliza listByUser()
+        val userGames = listByUser(userId)
 
-        // 2) filtrar completados
         val completed = userGames.filter { it.status?.equals("COMPLETADO", ignoreCase = true) == true }
-
-        // 3) pedir detalles de cada juego (máx. 20 como en tu UserScreen)
-        val rawgIds = completed.map { it.game_rawg_id }.distinct().take(20)
+        val rawgIds = completed.map { it.gameRawgId }.distinct().take(20)
 
         return rawgIds.mapNotNull { id ->
-            try {
+            runCatching {
                 val dto = gameApi.getGameDetails(id)
-                // mapear DTO → domain.Game (lo simplificamos a un modelo "lite")
                 Game(
                     id = dto.id,
                     title = dto.title,
@@ -36,9 +35,7 @@ class UserGameRepositoryImpl(
                     year = dto.releaseDate?.take(4)?.toIntOrNull(),
                     rating = dto.rating
                 )
-            } catch (e: Exception) {
-                null // si falla un id, lo ignoramos
-            }
+            }.getOrNull()
         }
     }
 

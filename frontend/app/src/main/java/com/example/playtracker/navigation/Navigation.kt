@@ -6,8 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.playtracker.data.remote.service.RetrofitInstance
 import com.example.playtracker.data.repository.FriendsRepository
 import com.example.playtracker.data.repository.ReviewsRepository
@@ -22,6 +24,7 @@ import com.example.playtracker.ui.screen.GamesScreen
 import com.example.playtracker.ui.screen.MainScreen
 import com.example.playtracker.ui.screen.SocialScreen
 import com.example.playtracker.ui.screen.LoginScreen
+import com.example.playtracker.ui.screen.UserScreen
 import com.example.playtracker.ui.viewmodel.GameDetailViewModel
 import com.example.playtracker.ui.viewmodel.SocialViewModelFactory
 
@@ -43,6 +46,14 @@ fun AppNavigation(navController: NavHostController, startDestination: String) {
 
         composable("main") {
             MainScreen(navController)
+        }
+
+        composable(
+            route = "user/{id}",
+            arguments = listOf(navArgument("id") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getInt("id") ?: return@composable
+            UserScreen(navController = navController, userId = id)
         }
 
         // --- GAME DETAIL ---

@@ -16,17 +16,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.playtracker.data.local.datastore.UserPreferences
 
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
-    val navController = rememberNavController()
+    val navController = rememberNavController()               // ⬅️ nav interno
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentRoute = navBackStackEntry?.destination?.route  // será "home", "social", "me" o "user/{userId}"
     val context = LocalContext.current
 
     val prefs = remember { UserPreferences(context) }
@@ -104,20 +106,24 @@ fun MainScreen(parentNavController: NavHostController) {
                     )
                 }
 
-                // Pantalla de Usuario
+                // Mi perfil (solo resalta en "me", NO en "user/{userId}")
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .background(
-                            if (currentRoute?.startsWith("user/") == true)
+                            if (currentRoute == "me")
                                 MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.surface
                         )
                         .clickable(enabled = storedUserId != null) {
-                            storedUserId?.let {
-                                navController.navigate("user/$it")
+                            // Navega a "me" (no a user/{id})
+                            if (currentRoute != "me") {
+                                navController.navigate("me") {
+                                    popUpTo("home") { inclusive = false }
+                                    launchSingleTop = true
+                                }
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -126,7 +132,7 @@ fun MainScreen(parentNavController: NavHostController) {
                         imageVector = Icons.Filled.Person,
                         contentDescription = "Usuario",
                         modifier = Modifier.size(40.dp),
-                        tint = if (currentRoute?.startsWith("user/") == true)
+                        tint = if (currentRoute == "me")
                             MaterialTheme.colorScheme.onPrimary
                         else
                             MaterialTheme.colorScheme.onSurface
@@ -144,13 +150,27 @@ fun MainScreen(parentNavController: NavHostController) {
                 navController = navController,
                 startDestination = "home"
             ) {
+                // Home puede seguir usando el root si lo necesitas para otras pantallas
                 composable("home") { GamesScreen(parentNavController) }
-                composable("social") { SocialScreen(parentNavController) }
-                composable("user/{userId}") { backStackEntry ->
-                    val userId = backStackEntry.arguments?.getString("userId")?.toIntOrNull()
-                    if (userId != null) {
-                        UserScreen(parentNavController, userId)
+
+                // Social debe usar el nav interno, así al ir a user/{id} mantiene Scaffold e insets
+                composable("social") { SocialScreen(navController /* interno */) }
+
+                // Mi perfil (sin arg): resalta la pestaña Usuario
+                composable("me") {
+                    // Usa tu storedUserId para mostrar tu propio perfil
+                    storedUserId?.let { uid ->
+                        UserScreen(parentNavController, uid)
                     }
+                }
+
+                // Perfil de otros: NO resalta la pestaña Usuario
+                composable(
+                    route = "user/{userId}",
+                    arguments = listOf(navArgument("userId") { type = NavType.IntType })
+                ) { backStackEntry ->
+                    val userId = backStackEntry.arguments?.getInt("userId") ?: return@composable
+                    UserScreen(parentNavController, userId)
                 }
             }
         }
