@@ -35,5 +35,5 @@ interface UserGameApi {
     suspend fun deleteUserGame(
         @Path("user_id") userId: Int,
         @Path("game_rawg_id") gameRawgId: Long
-    )
+    ): retrofit2.Response<Unit>
 }

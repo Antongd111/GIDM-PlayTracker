@@ -8,6 +8,7 @@ import com.example.playtracker.data.remote.service.UserGameApi
 import com.example.playtracker.domain.model.Game
 import com.example.playtracker.data.repository.UserGameRepository
 import com.example.playtracker.domain.model.UserGame
+import retrofit2.HttpException
 
 class UserGameRepositoryImpl(
     private val userGameApi: UserGameApi,
@@ -62,6 +63,15 @@ class UserGameRepositoryImpl(
                     status = newStatus
                 )
             ).toDomain()
+        }
+    }
+
+    override suspend fun deleteUserGame(userId: Int, rawgId: Long) {
+        val resp = userGameApi.deleteUserGame(userId, rawgId)
+        if (resp.isSuccessful || resp.code() == 404) {
+            return
+        } else {
+            throw HttpException(resp)
         }
     }
 }

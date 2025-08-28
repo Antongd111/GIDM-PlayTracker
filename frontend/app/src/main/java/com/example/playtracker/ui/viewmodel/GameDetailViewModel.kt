@@ -1,5 +1,6 @@
 package com.example.playtracker.ui.viewmodel
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -14,6 +15,8 @@ import com.example.playtracker.domain.model.GameReviews
 import com.example.playtracker.domain.model.Review
 import com.example.playtracker.domain.model.UserGame
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import kotlin.coroutines.cancellation.CancellationException
 
 class GameDetailViewModel(
     private val gameApi: GameApi,
@@ -67,35 +70,6 @@ class GameDetailViewModel(
         }
     }
 
-    fun submitReview(
-        gameId: Long,
-        score0to10: Float?,
-        notes: String?,
-        bearer: String,
-        onDone: () -> Unit
-    ) {
-        viewModelScope.launch {
-            isPostingReview = true
-            postReviewError = null
-
-            reviewsRepo.upsert(
-                gameId = gameId,
-                score0to10 = score0to10,
-                notes = notes,
-                bearer = bearer
-            )
-                .onSuccess { review ->
-                    myReview = review
-                    onDone()
-                }
-                .onFailure { e ->
-                    postReviewError = e.message ?: "No se pudo guardar la reseña"
-                }
-
-            isPostingReview = false
-        }
-    }
-
     fun loadGameDetail(gameId: Long) {
         viewModelScope.launch {
             isLoading = true
@@ -121,9 +95,26 @@ class GameDetailViewModel(
 
     fun updateGameStatus(userId: Int, gameRawgId: Long, newStatus: String) {
         viewModelScope.launch {
-            runCatching { userGameRepo.upsertUserGame(userId, gameRawgId, newStatus) }
-                .onSuccess { userGame = it }
-                .onFailure { error = "Error al actualizar estado del juego" }
+            if (newStatus.equals("No seguido", ignoreCase = true)) {
+                runCatching { userGameRepo.deleteUserGame(userId, gameRawgId) }
+                    .onSuccess {
+                        userGame = null
+                        myReview = null
+                        error = null
+                    }
+                    .onFailure {
+                        error = "Error al eliminar el juego de tu biblioteca"
+                    }
+            } else {
+                runCatching { userGameRepo.upsertUserGame(userId, gameRawgId, newStatus) }
+                    .onSuccess {
+                        userGame = it
+                        error = null
+                    }
+                    .onFailure {
+                        error = "Error al actualizar estado del juego"
+                    }
+            }
         }
     }
 

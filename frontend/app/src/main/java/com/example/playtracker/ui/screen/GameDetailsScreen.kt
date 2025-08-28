@@ -43,6 +43,11 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.window.DialogProperties
 import com.example.playtracker.domain.model.Review
 import kotlin.math.roundToInt
 
@@ -57,6 +62,11 @@ fun GameDetailScreen(
         )
     )
 ) {
+
+    // Para el modal de confirmación al eliminar juego
+    var showConfirmRemove by remember { mutableStateOf(false) }
+    var pendingStatus by remember { mutableStateOf<String?>(null) }
+
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     var userId by remember { mutableStateOf<Int?>(null) }
@@ -138,6 +148,10 @@ fun GameDetailScreen(
                 // Botones de estado
                 val statusOptions = listOf("No seguido", "Por jugar", "Jugando", "Completado")
                 val currentStatus = userGame?.status ?: "No seguido"
+                val canReview = remember(currentStatus) {
+                    currentStatus.equals("Completado", ignoreCase = true) ||
+                            currentStatus.equals("Jugando", ignoreCase = true)
+                }
                 val canUpdate = userId != null
 
                 Row(
@@ -147,7 +161,22 @@ fun GameDetailScreen(
                     statusOptions.forEach { status ->
                         val isSelected = currentStatus == status
                         Button(
-                            onClick = { userId?.let { uid -> viewModel.updateGameStatus(uid, gameId, status) } },
+                            onClick = {
+                                // Si quiere pasar a "No seguido" desde otro estado -> confirmar
+                                if (status == "No seguido" && currentStatus != "No seguido") {
+                                    pendingStatus = status
+                                    showConfirmRemove = true
+                                } else {
+                                    // Cualquier otro cambio directo
+                                    userId?.let { uid ->
+                                        viewModel.updateGameStatus(
+                                            uid,
+                                            gameId,
+                                            status
+                                        )
+                                    }
+                                }
+                            },
                             enabled = canUpdate,
                             modifier = Modifier
                                 .weight(1f)
@@ -165,6 +194,66 @@ fun GameDetailScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                // Modal para confirmación al eliminar juego
+                if (showConfirmRemove) {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showConfirmRemove = false
+                            pendingStatus = null
+                        },
+                        modifier = Modifier.fillMaxWidth(0.96f), // más ancho
+                        properties = DialogProperties(usePlatformDefaultWidth = false), // permite el ancho custom
+                        shape = RoundedCornerShape(20.dp),
+                        title = { Text("Eliminar de tu biblioteca") },
+                        text = {
+                            Text(
+                                buildAnnotatedString {
+                                    append("¿Seguro que quieres eliminar el juego de tu biblioteca?\n\n")
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append("Esto eliminará tu reseña sobre el juego.")
+                                    }
+                                }
+                            )
+                        },
+                        // Puedes dejar 'dismissButton' como TextButton o estilizarlo también
+                        dismissButton = {
+                            TextButton(
+                                onClick = {
+                                    showConfirmRemove = false
+                                    pendingStatus = null
+                                }
+                            ) { Text("Cancelar") }
+                        },
+                        confirmButton = {
+                            // Botón rojo, redondeado, estilo filled
+                            Button(
+                                onClick = {
+                                    val uid = userId
+                                    if (uid != null) {
+                                        viewModel.updateGameStatus(uid, gameId, "No seguido")
+                                        bearer?.let { b -> viewModel.loadReviews(gameId, b) }
+                                        Toast.makeText(
+                                            context,
+                                            "Juego eliminado de tu biblioteca",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    showConfirmRemove = false
+                                    pendingStatus = null
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                            ) {
+                                Text("Sí, eliminar")
+                            }
+                        }
+                    )
+                }
 
                 // Descripción con "ver más"
                 var expanded by remember { mutableStateOf(false) }
@@ -264,15 +353,32 @@ fun GameDetailScreen(
                 var showReviewSheet by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
-                        if (userId == null) {
-                            Toast.makeText(context, "Inicia sesión para reseñar", Toast.LENGTH_SHORT).show()
-                        } else showReviewSheet = true
+                        when {
+                            userId == null -> {
+                                Toast.makeText(context, "Inicia sesión para reseñar", Toast.LENGTH_SHORT).show()
+                            }
+                            !canReview -> {
+                                Toast.makeText(
+                                    context,
+                                    "Solo puedes reseñar si estás jugando o has completado el juego.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> {
+                                showReviewSheet = true
+                            }
+                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Text(if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) "Editar reseña" else "Escribir reseña")
+                    Text(
+                        if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank())
+                            "Editar reseña"
+                        else
+                            "Escribir reseña"
+                    )
                 }
 
                 Spacer(Modifier.height(24.dp))
@@ -359,6 +465,10 @@ fun GameDetailScreen(
                                                     notes = tempNotes,
                                                     bearer = b
                                                 ).getOrThrow()
+
+                                                // REFRESCO DE INFORMACION
+                                                viewModel.loadReviews(gameId, b)
+                                                userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
 
                                                 Toast.makeText(context, "Reseña guardada", Toast.LENGTH_SHORT).show()
                                                 showReviewSheet = false
@@ -480,6 +590,16 @@ fun ReviewsSection(
     isLoading: Boolean,
     error: String?
 ) {
+    // Filtra: solo reseñas con texto o con puntuación > 0
+    val displayReviews = remember(reviews) {
+        reviews.filter { review ->
+            val hasText = !review.notes.isNullOrBlank()
+            val score = review.score0to10?.toFloat() ?: 0f
+            val hasScore = score > 0f
+            hasText || hasScore
+        }
+    }
+
     Column(Modifier.fillMaxWidth()) {
         Text(
             text = title,
@@ -505,14 +625,14 @@ fun ReviewsSection(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-            reviews.isEmpty() -> {
+            displayReviews.isEmpty() -> {
                 Text(
                     "Aún no hay reseñas. ¡Sé el primero!",
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
             else -> {
-                ReviewsCarousel(reviews)
+                ReviewsCarousel(displayReviews)
             }
         }
     }
@@ -521,14 +641,25 @@ fun ReviewsSection(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ReviewsCarousel(reviews: List<Review>) {
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { reviews.size })
+    if (reviews.isEmpty()) return
 
-    LaunchedEffect(reviews) {
-        if (reviews.isEmpty()) return@LaunchedEffect
+    val size = reviews.size
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { size })
+
+    // Recoloca la página si cambia el tamaño
+    LaunchedEffect(size) {
+        if (pagerState.currentPage >= size) {
+            pagerState.scrollToPage(0)
+        }
+    }
+
+    LaunchedEffect(size) {
+        if (size == 0) return@LaunchedEffect
         while (true) {
             kotlinx.coroutines.delay(3500)
-            if (!pagerState.isScrollInProgress) {
-                pagerState.animateScrollToPage((pagerState.currentPage + 1) % reviews.size)
+            if (!pagerState.isScrollInProgress && size > 0) {
+                val next = (pagerState.currentPage + 1) % size
+                pagerState.animateScrollToPage(next)
             }
         }
     }
@@ -543,13 +674,15 @@ private fun ReviewsCarousel(reviews: List<Review>) {
             pageSpacing = 12.dp,
             modifier = Modifier.matchParentSize()
         ) { page ->
-            ReviewCard(
-                review = reviews[page],
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-            )
+            reviews.getOrNull(page)?.let { review ->
+                ReviewCard(
+                    review = review,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                )
+            }
         }
     }
 
@@ -559,8 +692,8 @@ private fun ReviewsCarousel(reviews: List<Review>) {
             .padding(top = 8.dp),
         horizontalArrangement = Arrangement.Center
     ) {
-        repeat(reviews.size) { i ->
-            val selected = i == pagerState.currentPage
+        repeat(size) { i ->
+            val selected = i == (pagerState.currentPage % size)
             Box(
                 Modifier
                     .padding(horizontal = 3.dp)
