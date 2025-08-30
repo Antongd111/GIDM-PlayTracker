@@ -31,8 +31,8 @@ class GamesViewModel : ViewModel() {
     val popular: StateFlow<List<GamePreview>> = _popular.asStateFlow()
 
     // Búsqueda
-    private val _searchResults = MutableStateFlow<List<Game>>(emptyList())
-    val searchResults: StateFlow<List<Game>> = _searchResults.asStateFlow()
+    private val _searchResults = MutableStateFlow<List<GamePreview>>(emptyList())
+    val searchResults: StateFlow<List<GamePreview>> = _searchResults.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()

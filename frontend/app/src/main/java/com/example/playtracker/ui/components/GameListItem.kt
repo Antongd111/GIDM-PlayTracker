@@ -19,12 +19,13 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.data.remote.dto.game.GameDto
 import com.example.playtracker.domain.model.Game
+import com.example.playtracker.domain.model.GamePreview
 import com.example.playtracker.ui.theme.AzulElectrico
 import com.example.playtracker.ui.theme.TextoClaro
 
 @Composable
 fun GameListItem(
-    game: Game,
+    game: GamePreview,
     navController: NavController
 ) {
     Row(
@@ -61,7 +62,7 @@ fun GameListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = if (game.year == 0) "Por determinar" else game.year.toString(),
+                text = game.year,
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoClaro
             )

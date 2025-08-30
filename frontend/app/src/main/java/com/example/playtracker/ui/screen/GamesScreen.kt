@@ -24,7 +24,6 @@ import com.example.playtracker.ui.viewmodel.GamesViewModel
 fun GamesScreen(
     navController: NavController
 ) {
-    // VM sin factory (crea deps internas)
     val viewModel: GamesViewModel = viewModel(key = "GamesVM")
 
     val listState = rememberLazyListState()

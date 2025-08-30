@@ -21,5 +21,5 @@ private fun GamePreviewDto.toDomain() = GamePreview(
     id = id,
     title = title.ifBlank { "Game #$id" },
     imageUrl = imageUrl,
-    releaseDate = releaseDate
+    year = year
 )

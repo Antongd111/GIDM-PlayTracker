@@ -5,5 +5,5 @@ import com.example.playtracker.domain.model.GamePreview
 
 interface GameRepository {
     suspend fun getPopular(): List<GamePreview>
-    suspend fun search(query: String): List<Game>
+    suspend fun search(query: String): List<GamePreview>
 }

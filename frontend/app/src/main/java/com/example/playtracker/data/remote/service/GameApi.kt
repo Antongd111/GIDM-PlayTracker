@@ -9,7 +9,7 @@ import retrofit2.http.Path
 
 interface GameApi {
     @GET("rawg/games/search")
-    suspend fun searchGames(@Query("query") query: String): List<GameDto>
+    suspend fun searchGames(@Query("query") query: String): List<GamePreviewDto>
 
     @GET("rawg/games/popular")
     suspend fun getPopularGames(@Query("page") page: Int = 2): List<GamePreviewDto>

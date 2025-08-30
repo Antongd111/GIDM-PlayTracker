@@ -39,7 +39,7 @@ fun GamePreviewCard(
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = game.releaseDate,
+                text = game.year,
                 style = MaterialTheme.typography.labelSmall
             )
         }

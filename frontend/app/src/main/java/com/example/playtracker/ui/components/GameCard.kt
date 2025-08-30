@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.GamePreview
+import com.example.playtracker.ui.theme.TextoClaro
 
 @Composable
 fun GameCard(game: GamePreview, navController: NavController) {
@@ -52,6 +53,12 @@ fun GameCard(game: GamePreview, navController: NavController) {
                 maxLines = 2,
                 modifier = Modifier.fillMaxWidth().padding(8.dp),
                 textAlign = TextAlign.Center
+            )
+
+            Text(
+                text = game.year,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextoClaro
             )
         }
     }

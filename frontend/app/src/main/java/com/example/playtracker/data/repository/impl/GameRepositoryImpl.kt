@@ -1,7 +1,7 @@
 package com.example.playtracker.data.repository.impl
 
 
-import com.example.playtracker.data.remote.service.GameApi // ajusta el nombre real de tu interfaz
+import com.example.playtracker.data.remote.service.GameApi
 import com.example.playtracker.data.repository.GameRepository
 import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.GamePreview
@@ -16,18 +16,17 @@ class GameRepositoryImpl(
                 id = dto.id,
                 title = dto.title,
                 imageUrl = dto.imageUrl,
-                releaseDate = dto.releaseDate ?: "Desconocido",
+                year = dto.year ?: "0000",
             )
         }
 
-    override suspend fun search(query: String): List<Game> =
+    override suspend fun search(query: String): List<GamePreview> =
         api.searchGames(query).map { dto ->
-            Game(
+            GamePreview(
                 id = dto.id,
                 title = dto.title,
                 imageUrl = dto.imageUrl,
-                year = dto.year.takeIf { it != 0 },
-                rating = dto.rating
+                year = dto.year ?: "0000",
             )
         }
 }
