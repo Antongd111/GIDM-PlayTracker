@@ -26,71 +26,36 @@ import com.example.playtracker.ui.screen.SocialScreen
 import com.example.playtracker.ui.screen.LoginScreen
 import com.example.playtracker.ui.screen.UserScreen
 import com.example.playtracker.ui.viewmodel.GameDetailViewModel
-import com.example.playtracker.ui.viewmodel.SocialViewModelFactory
 
 @Composable
 fun AppNavigation(navController: NavHostController, startDestination: String) {
+    // Grafo de navegación principal (root)
     NavHost(navController = navController, startDestination = startDestination) {
+
+        // Pantalla de login (sin bottom bar)
         composable("login") {
             LoginScreen(navController)
         }
 
-        composable("home") {
-            GamesScreen(navController)
-        }
-
-        // --- SOCIAL ---
-        composable("social") {
-            SocialScreen(navController = navController)
-        }
-
+        // Shell principal con bottom bar y NavHost interno (tabs)
         composable("main") {
-            MainScreen(navController)
+            MainScreen(navController) // pasa el parent para poder ir a detalles
         }
 
-        composable(
-            route = "user/{id}",
-            arguments = listOf(navArgument("id") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val id = backStackEntry.arguments?.getInt("id") ?: return@composable
-            UserScreen(navController = navController, userId = id)
-        }
-
-        // --- GAME DETAIL ---
+        // Detalle de juego (fuera de la shell con bottom bar)
         composable(route = "gameDetail/{gameId}") { backStackEntry ->
-            val gameId = backStackEntry.arguments?.getString("gameId")?.toLongOrNull()
+            val gameId = backStackEntry.arguments
+                ?.getString("gameId")
+                ?.toLongOrNull()
                 ?: return@composable
 
+            // ViewModel sin factory (crea sus dependencias internamente)
             val viewModel: GameDetailViewModel = viewModel(
-                factory = object : ViewModelProvider.Factory {
-                    @Suppress("UNCHECKED_CAST")
-                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        val gameApi = RetrofitInstance.gameApi
-                        val userGameApi = RetrofitInstance.userGameApi
-
-                        val userGameRepo: UserGameRepository = UserGameRepositoryImpl(
-                            userGameApi = userGameApi,
-                            gameApi = gameApi
-                        )
-
-                        // 👇 NUEVO: repo de reviews
-                        val reviewsRepo: ReviewsRepository = ReviewsRepositoryImpl(
-                            RetrofitInstance.reviewsApi
-                        )
-
-                        return GameDetailViewModel(
-                            gameApi = gameApi,
-                            userGameRepo = userGameRepo,
-                            reviewsRepo = reviewsRepo
-                        ) as T
-                    }
-                },
-                key = "GameDetailVM_$gameId"
+                key = "GameDetailVM_$gameId" // clave estable por juego
             )
 
             GameDetailScreen(
                 gameId = gameId,
-                viewModel = viewModel
             )
         }
     }

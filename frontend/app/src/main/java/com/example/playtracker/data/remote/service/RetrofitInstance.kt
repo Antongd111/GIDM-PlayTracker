@@ -10,9 +10,9 @@ object RetrofitInstance {
 
     // Cliente con timeouts aumentados
     private val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS) // antes 10
-        .readTimeout(60, TimeUnit.SECONDS)    // antes 10
-        .writeTimeout(60, TimeUnit.SECONDS)   // antes 10
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     private val retrofit: Retrofit by lazy {

@@ -20,12 +20,13 @@ import com.example.playtracker.ui.components.GameListItem
 import com.example.playtracker.ui.components.GamePreviewCard
 import com.example.playtracker.ui.components.SearchBar
 import com.example.playtracker.ui.viewmodel.GamesViewModel
-
 @Composable
 fun GamesScreen(
-    navController: NavController,
-    viewModel: GamesViewModel = viewModel(factory = GamesViewModel.factory())
+    navController: NavController
 ) {
+    // VM sin factory (crea deps internas)
+    val viewModel: GamesViewModel = viewModel(key = "GamesVM")
+
     val listState = rememberLazyListState()
     val search = remember { mutableStateOf("") }
 
@@ -36,18 +37,13 @@ fun GamesScreen(
     val isSearching by viewModel.isSearching.collectAsState()
     val recommendations by viewModel.recommendations.collectAsState()
 
-    // ⚡ userId desde DataStore (prefs)
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val storedUserId by prefs.userIdFlow.collectAsState(initial = null)
 
-    // carga inicial
-    LaunchedEffect(Unit) {
-        viewModel.loadPopular()
-    }
-    // carga recomendaciones cuando tengamos userId
+    LaunchedEffect(Unit) { viewModel.loadPopular() }
     LaunchedEffect(storedUserId) {
-        storedUserId?.let { uid -> viewModel.loadRecommendations(uid) }
+//        storedUserId?.let { uid -> viewModel.loadRecommendations(uid) }
     }
 
     Surface(
@@ -90,9 +86,7 @@ fun GamesScreen(
             }
 
             if (!isSearching) {
-
-                // === RECOMENDADOS PARA TI ===
-                if (!recommendations.isNullOrEmpty()) {
+                if (recommendations.isNotEmpty()) {
                     item {
                         Text(
                             text = "Recomendados para ti",
@@ -113,7 +107,6 @@ fun GamesScreen(
                     }
                 }
 
-                // === JUEGOS POPULARES ===
                 if (popular.isNotEmpty()) {
                     item {
                         Text(

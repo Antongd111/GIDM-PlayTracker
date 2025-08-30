@@ -42,26 +42,19 @@ import com.example.playtracker.ui.viewmodel.*
 @Composable
 fun UserScreen(
     navController: NavController,
-    userId: Int,
-    viewModel: UserViewModel = viewModel(
-        factory = UserViewModelFactory(
-            userRepo = UserRepositoryImpl(RetrofitInstance.userApi, RetrofitInstance.friendsApi),
-            userGameRepo = UserGameRepositoryImpl(RetrofitInstance.userGameApi, RetrofitInstance.gameApi),
-            gameApi = RetrofitInstance.gameApi,
-            friendsRepo = FriendsRepositoryImpl(RetrofitInstance.friendsApi)
-        )
-    )
+    userId: Int
 ) {
+    // VM sin factory (crea deps internas). Key por usuario para instancia estable.
+    val viewModel: UserViewModel = viewModel(key = "UserVM_$userId")
+
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer = token?.let { "Bearer $it" }
 
     val scroll = rememberScrollState()
-
     val ui by viewModel.ui.collectAsState()
 
-    // Modal de edición (solo propio perfil)
     var showEditDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId, token) {
@@ -89,7 +82,6 @@ fun UserScreen(
 
                     val avatarSize = 100.dp
 
-                    // --- Cabecera avatar + nombre/estado ---
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -126,7 +118,6 @@ fun UserScreen(
                         }
                     }
 
-                    // --- Fila de acciones debajo del header ---
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -136,7 +127,6 @@ fun UserScreen(
                     ) {
                         Spacer(modifier = Modifier.weight(1f))
 
-                        // Botón Seguir / Pendiente / Amigos (solo si NO es mi cuenta)
                         if (!ui.isOwn) {
                             val (label, enabled) = when (ui.friendState) {
                                 FriendState.NONE -> "Seguir" to !ui.workingFriend
@@ -165,7 +155,6 @@ fun UserScreen(
                         }
                     }
 
-                    // ---- Contenido ----
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -173,7 +162,7 @@ fun UserScreen(
                             .verticalScroll(scroll)
                             .weight(1f)
                     ) {
-                        // ---- Juego favorito ----
+                        // --- Juego favorito ---
                         Text("Juego favorito", style = MaterialTheme.typography.titleMedium)
 
                         when {
@@ -245,7 +234,7 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Juegos completados ----
+                        // --- Completados ---
                         val completedCount = ui.completed.size
                         Text("Juegos completados ($completedCount)", style = MaterialTheme.typography.titleMedium)
 
@@ -316,7 +305,7 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Reseñas ----
+                        // --- Reseñas ---
                         Text("Reseñas (${ui.reviews.size})", style = MaterialTheme.typography.titleMedium)
 
                         if (ui.reviews.isEmpty()) {
@@ -370,7 +359,7 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // ---- Amigos ----
+                        // --- Amigos ---
                         Text("Amigos", style = MaterialTheme.typography.titleMedium)
 
                         if (ui.friends.isEmpty()) {
@@ -389,9 +378,7 @@ fun UserScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier
                                             .width(88.dp)
-                                            .clickable {
-                                                navController.navigate("user/${friend.id}")
-                                            }
+                                            .clickable { navController.navigate("user/${friend.id}") }
                                     ) {
                                         val avatar = rememberAsyncImagePainter(
                                             model = if (!friend.avatarUrl.isNullOrBlank())
@@ -420,7 +407,6 @@ fun UserScreen(
                     }
                 }
 
-                // Modal de edición
                 if (ui.isOwn) {
                     EditProfileDialog(
                         isOpen = showEditDialog,
@@ -443,6 +429,7 @@ fun UserScreen(
         }
     }
 }
+
 
 /* ====== Mantén este composable como lo pegaste ====== */
 @Composable

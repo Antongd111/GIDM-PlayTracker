@@ -2,7 +2,6 @@ package com.example.playtracker.ui.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.GamePreview
@@ -11,16 +10,19 @@ import com.example.playtracker.data.repository.RecommendationsRepository
 import com.example.playtracker.data.repository.impl.GameRepositoryImpl
 import com.example.playtracker.data.repository.impl.RecommendationsRepositoryImpl
 import com.example.playtracker.data.remote.service.RetrofitInstance
-import com.example.playtracker.data.remote.service.RecommendationsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class GamesViewModel(
-    private val repo: GameRepository,
-    private val recRepo: RecommendationsRepository
-) : ViewModel() {
+class GamesViewModel : ViewModel() {
+
+    // --- Dependencias internas ---
+    private val repo: GameRepository =
+        GameRepositoryImpl(RetrofitInstance.gameApi)
+    private val recRepo: RecommendationsRepository =
+        RecommendationsRepositoryImpl(RetrofitInstance.recommendationsApi)
+
     private val _recError = MutableStateFlow<String?>(null)
     val recError = _recError.asStateFlow()
 
@@ -68,7 +70,7 @@ class GamesViewModel(
             Log.d("REC", "OK -> ${items.size} recomendaciones")
         } catch (e: Exception) {
             _recError.value = e.message
-            Log.e("REC", "FALLO recomendaciones", e)  // imprime stacktrace y mensaje
+            Log.e("REC", "FALLO recomendaciones", e)
         }
     }
 
@@ -86,16 +88,4 @@ class GamesViewModel(
             .onFailure { _error.value = it.message ?: "Error en la búsqueda" }
         _loading.value = false
     }
-
-    companion object {
-        fun factory(): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val gameRepo = GameRepositoryImpl(RetrofitInstance.gameApi)
-                val recRepo = RecommendationsRepositoryImpl(RetrofitInstance.recommendationsApi)
-                return GamesViewModel(gameRepo, recRepo) as T
-            }
-        }
-    }
-
 }

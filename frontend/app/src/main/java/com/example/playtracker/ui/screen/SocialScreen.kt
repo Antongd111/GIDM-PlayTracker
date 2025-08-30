@@ -43,23 +43,11 @@ import com.example.playtracker.ui.viewmodel.SocialViewModel
 
 @Composable
 fun SocialScreen(
-    navController: NavHostController,
-    viewModel: SocialViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                val friendsApi = RetrofitInstance.friendsApi
-                val userApi = RetrofitInstance.userApi
-                val friendsRepo: FriendsRepository = FriendsRepositoryImpl(friendsApi)
-                val userRepo: UserRepository = UserRepositoryImpl(userApi, friendsApi)
-                return SocialViewModel(
-                    users = userRepo,
-                    friends = friendsRepo
-                ) as T
-            }
-        }
-    )
+    navController: NavHostController
 ) {
+    // VM sin factory (crea deps internas)
+    val viewModel: SocialViewModel = viewModel(key = "SocialVM")
+
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
@@ -72,18 +60,10 @@ fun SocialScreen(
 
     fun snack(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 
-    // Cargar solicitudes entrantes cuando haya token
     LaunchedEffect(bearer) {
         val b = bearer ?: return@LaunchedEffect
         viewModel.loadIncoming(b)
-    }
-
-    // 🔁 Rehidratar estados si ya hay resultados y el token llega después
-    LaunchedEffect(bearer) {
-        val b = bearer ?: return@LaunchedEffect
-        if (ui.results.isNotEmpty()) {
-            viewModel.hydrateStatesForResults(b)
-        }
+        if (ui.results.isNotEmpty()) viewModel.hydrateStatesForResults(b)
     }
 
     Surface(
@@ -98,16 +78,13 @@ fun SocialScreen(
                 value = search,
                 onValueChange = { search = it },
                 onSearch = {
-                    viewModel.search(search)               // hace la búsqueda
-                    bearer?.let { b ->                     // si ya hay token, hidrata inmediatamente
-                        viewModel.hydrateStatesForResults(b)
-                    }
+                    viewModel.search(search)
+                    bearer?.let { b -> viewModel.hydrateStatesForResults(b) }
                 }
             )
 
             Spacer(Modifier.height(12.dp))
 
-            // Banner de solicitudes entrantes
             if (ui.incoming.isNotEmpty()) {
                 IncomingRequestsBanner(
                     count = ui.incoming.size,
@@ -172,6 +149,7 @@ fun SocialScreen(
         }
     }
 }
+
 
 /* ===================== UI helpers ===================== */
 

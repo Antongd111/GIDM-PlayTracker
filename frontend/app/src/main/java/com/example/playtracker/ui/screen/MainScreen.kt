@@ -26,9 +26,9 @@ import com.example.playtracker.data.local.datastore.UserPreferences
 
 @Composable
 fun MainScreen(parentNavController: NavHostController) {
-    val navController = rememberNavController()               // ⬅️ nav interno
+    val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route  // será "home", "social", "me" o "user/{userId}"
+    val currentRoute = navBackStackEntry?.destination?.route
     val context = LocalContext.current
 
     val prefs = remember { UserPreferences(context) }

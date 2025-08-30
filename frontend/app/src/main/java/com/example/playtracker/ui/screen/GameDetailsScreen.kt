@@ -53,15 +53,12 @@ import kotlin.math.roundToInt
 
 @Composable
 fun GameDetailScreen(
-    gameId: Long,
-    viewModel: GameDetailViewModel = viewModel(
-        factory = GameDetailViewModel.Factory(
-            gameApi = RetrofitInstance.gameApi,
-            userGameRepo = UserGameRepositoryImpl(RetrofitInstance.userGameApi, RetrofitInstance.gameApi),
-            reviewsRepo = ReviewsRepositoryImpl(RetrofitInstance.reviewsApi)
-        )
-    )
+    gameId: Long
 ) {
+    // ViewModel propio de la pantalla, sin factory (usa el constructor vacío)
+    val viewModel: GameDetailViewModel = viewModel(
+        key = "GameDetailVM_$gameId"
+    )
 
     // Para el modal de confirmación al eliminar juego
     var showConfirmRemove by remember { mutableStateOf(false) }
@@ -75,11 +72,11 @@ fun GameDetailScreen(
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer: String? = token?.let { "Bearer $it" }
 
-    // Repo de reviews
+    // Repo de reviews (solo si lo necesitas aquí para el envío directo desde la UI)
     val reviewsRepo = remember { ReviewsRepositoryImpl(RetrofitInstance.reviewsApi) }
     val scope = rememberCoroutineScope()
 
-    // Carga del detalle del juego + reseñas
+    // Carga del detalle + reseñas
     LaunchedEffect(gameId, bearer) {
         viewModel.loadGameDetail(gameId)
         if (bearer != null) viewModel.loadReviews(gameId, bearer)

@@ -1,12 +1,14 @@
 package com.example.playtracker.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.playtracker.domain.model.FriendRequest
 import com.example.playtracker.domain.model.User
 import com.example.playtracker.data.repository.FriendsRepository
 import com.example.playtracker.data.repository.UserRepository
+import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
+import com.example.playtracker.data.repository.impl.UserRepositoryImpl
+import com.example.playtracker.data.remote.service.RetrofitInstance
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -15,26 +17,34 @@ import kotlinx.coroutines.launch
 enum class FriendState { NONE, PENDING_SENT, FRIENDS }
 
 data class SocialUiState(
-    val workingFor: Set<Int> = emptySet(),            // ids en loading para botón de lista
-    val states: Map<Int, FriendState> = emptyMap(),   // estado por userId
+    val workingFor: Set<Int> = emptySet(),
+    val states: Map<Int, FriendState> = emptyMap(),
     val error: String? = null,
 
-    val incoming: List<FriendRequest> = emptyList(),  // solicitudes entrantes (domain)
-    val workingIncoming: Set<Int> = emptySet(),       // ids en loading en el diálogo
+    val incoming: List<FriendRequest> = emptyList(),
+    val workingIncoming: Set<Int> = emptySet(),
 
-    val results: List<User> = emptyList(),            // resultados de búsqueda (domain)
+    val results: List<User> = emptyList(),
     val isSearching: Boolean = false
 )
 
-class SocialViewModel(
-    private val users: UserRepository,
-    private val friends: FriendsRepository
-) : ViewModel() {
+class SocialViewModel : ViewModel() {
+
+    // --- Dependencias internas ---
+    private val users: UserRepository =
+        // Ajusta esta línea según la firma real de tu UserRepositoryImpl
+        UserRepositoryImpl(
+            users = RetrofitInstance.userApi,
+            friends = RetrofitInstance.friendsApi
+        )
+
+    private val friends: FriendsRepository =
+        FriendsRepositoryImpl(RetrofitInstance.friendsApi)
 
     private val _ui = MutableStateFlow(SocialUiState())
     val ui: StateFlow<SocialUiState> = _ui
 
-    /** Buscar usuarios (no requiere token si tu endpoint es público). */
+    /** Buscar usuarios */
     fun search(query: String) = viewModelScope.launch {
         if (query.isBlank()) {
             _ui.update { it.copy(results = emptyList(), isSearching = false, error = null) }
@@ -43,7 +53,6 @@ class SocialViewModel(
         _ui.update { it.copy(isSearching = true, error = null) }
         runCatching { users.searchUsers(query) }
             .onSuccess { list ->
-                // Inicializa a NONE y luego hidrata con datos reales (amigos/pendientes)
                 _ui.update { curr ->
                     val next = curr.states.toMutableMap()
                     list.forEach { if (it.id !in next) next[it.id] = FriendState.NONE }
@@ -55,7 +64,7 @@ class SocialViewModel(
             }
     }
 
-    /** Hidrata los estados reales (amigos y solicitudes OUTGOING) del resultado. */
+    /** Hidrata estados (amigos y OUTGOING) */
     fun hydrateStatesForResults(bearer: String) = viewModelScope.launch {
         val resultIds = _ui.value.results.map { it.id }
         if (resultIds.isEmpty()) return@launch
@@ -74,13 +83,13 @@ class SocialViewModel(
         }
     }
 
-    /** Carga solicitudes ENTRANTES reales. */
+    /** Carga solicitudes ENTRANTES */
     fun loadIncoming(bearer: String) = viewModelScope.launch {
         val inc = friends.listIncoming(bearer).getOrElse { emptyList() }
         _ui.update { it.copy(incoming = inc) }
     }
 
-    /** Acción única por usuario según estado actual: send/cancel/unfriend. */
+    /** Acción por usuario: send/cancel/unfriend */
     fun toggleFriendAction(userId: Int, bearer: String, onSnack: (String) -> Unit) {
         val current = _ui.value.states[userId] ?: FriendState.NONE
         if (_ui.value.workingFor.contains(userId)) return
@@ -187,15 +196,5 @@ class SocialViewModel(
                     onSnack("No se pudo rechazar: ${e.message ?: ""}")
                 }
         }
-    }
-}
-
-class SocialViewModelFactory(
-    private val users: UserRepository,
-    private val friends: FriendsRepository
-) : ViewModelProvider.Factory {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return SocialViewModel(users, friends) as T
     }
 }

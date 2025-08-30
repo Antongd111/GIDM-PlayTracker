@@ -5,25 +5,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.playtracker.data.remote.service.GameApi
-import com.example.playtracker.data.repository.UserGameRepository
 import com.example.playtracker.data.remote.dto.game.GameDetailDto
+import com.example.playtracker.data.remote.service.RetrofitInstance
 import com.example.playtracker.data.repository.ReviewsRepository
+import com.example.playtracker.data.repository.UserGameRepository
+import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
+import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
 import com.example.playtracker.domain.model.GameReviews
 import com.example.playtracker.domain.model.Review
 import com.example.playtracker.domain.model.UserGame
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import kotlin.coroutines.cancellation.CancellationException
 
-class GameDetailViewModel(
-    private val gameApi: GameApi,
-    private val userGameRepo: UserGameRepository,
-    private val reviewsRepo: ReviewsRepository
-) : ViewModel() {
+class GameDetailViewModel : ViewModel() {
 
+    // --- Dependencias creadas aquí (simplificación sin DI) ---
+    private val gameApi = RetrofitInstance.gameApi
+    private val userGameRepo: UserGameRepository =
+        UserGameRepositoryImpl(
+            userGameApi = RetrofitInstance.userGameApi,
+            gameApi = gameApi
+        )
+    private val reviewsRepo: ReviewsRepository =
+        ReviewsRepositoryImpl(RetrofitInstance.reviewsApi)
+
+    // --- Estado ---
     var gameDetail by mutableStateOf<GameDetailDto?>(null)
         private set
 
@@ -54,6 +60,7 @@ class GameDetailViewModel(
     var reviewsError by mutableStateOf<String?>(null)
         private set
 
+    // --- Lógica ---
     fun loadReviews(gameId: Long, bearer: String) {
         viewModelScope.launch {
             isLoadingReviews = true
@@ -115,17 +122,6 @@ class GameDetailViewModel(
                         error = "Error al actualizar estado del juego"
                     }
             }
-        }
-    }
-
-    class Factory(
-        private val gameApi: GameApi,
-        private val userGameRepo: UserGameRepository,
-        private val reviewsRepo: ReviewsRepository
-    ) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return GameDetailViewModel(gameApi, userGameRepo, reviewsRepo) as T
         }
     }
 }
