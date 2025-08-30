@@ -29,7 +29,7 @@ async def get_game(game_id: int):
 # @router.get("/games/{game_id}", response_model=GameDetailResponse)
 # async def get_game(
 #     game_id: int,
-#     db: Session = Depends(get_db),   # ⬅️ inyecta la sesión
+#     db: Session = Depends(get_db),
 # ):
 #     # 1) pides el detalle a RAWG como hacías
 #     detail = await get_game_details(game_id)

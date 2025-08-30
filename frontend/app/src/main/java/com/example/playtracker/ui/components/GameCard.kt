@@ -15,9 +15,10 @@ import com.example.playtracker.ui.theme.FondoSecundario
 import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.example.playtracker.domain.model.Game
+import com.example.playtracker.domain.model.GamePreview
 
 @Composable
-fun GameCard(game: Game, navController: NavController) {
+fun GameCard(game: GamePreview, navController: NavController) {
 
     Card(
         onClick = {

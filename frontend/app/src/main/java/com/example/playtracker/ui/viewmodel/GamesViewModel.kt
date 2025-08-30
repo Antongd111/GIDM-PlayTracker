@@ -27,8 +27,8 @@ class GamesViewModel : ViewModel() {
     val recError = _recError.asStateFlow()
 
     // Populares
-    private val _popular = MutableStateFlow<List<Game>>(emptyList())
-    val popular: StateFlow<List<Game>> = _popular.asStateFlow()
+    private val _popular = MutableStateFlow<List<GamePreview>>(emptyList())
+    val popular: StateFlow<List<GamePreview>> = _popular.asStateFlow()
 
     // Búsqueda
     private val _searchResults = MutableStateFlow<List<Game>>(emptyList())

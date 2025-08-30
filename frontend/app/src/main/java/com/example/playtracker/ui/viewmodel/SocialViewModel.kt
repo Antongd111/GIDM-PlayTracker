@@ -32,7 +32,6 @@ class SocialViewModel : ViewModel() {
 
     // --- Dependencias internas ---
     private val users: UserRepository =
-        // Ajusta esta línea según la firma real de tu UserRepositoryImpl
         UserRepositoryImpl(
             users = RetrofitInstance.userApi,
             friends = RetrofitInstance.friendsApi

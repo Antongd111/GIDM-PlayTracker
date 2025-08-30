@@ -38,12 +38,10 @@ fun GamePreviewCard(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium
             )
-            if (game.releaseDate.isNotBlank()) {
-                Text(
-                    text = game.releaseDate,
-                    style = MaterialTheme.typography.labelSmall
-                )
-            }
+            Text(
+                text = game.releaseDate,
+                style = MaterialTheme.typography.labelSmall
+            )
         }
     }
 }
