@@ -16,3 +16,9 @@ python-jose[cryptography]
 # Configuración desde entorno
 pydantic[email]
 pydantic-settings
+
+# Sistema de recomendación
+scikit-learn
+scipy
+pandas
+joblib

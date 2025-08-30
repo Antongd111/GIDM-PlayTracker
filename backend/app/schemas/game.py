@@ -25,3 +25,13 @@ class GameDetailResponse(BaseModel):
     screenshots: List[str]
     videos: List[str]
     similarGames: List[SimilarGame]
+
+class GamePreview(BaseModel):
+    id: int
+    title: str
+    imageUrl:str
+    releaseDate: str
+
+class Recommendations(BaseModel):
+    user_id: int
+    items: List[GamePreview]

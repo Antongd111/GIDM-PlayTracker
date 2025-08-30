@@ -10,12 +10,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.playtracker.domain.model.Game
+import com.example.playtracker.data.local.datastore.UserPreferences
 import com.example.playtracker.ui.components.GameCard
 import com.example.playtracker.ui.components.GameListItem
+import com.example.playtracker.ui.components.GamePreviewCard
 import com.example.playtracker.ui.components.SearchBar
 import com.example.playtracker.ui.viewmodel.GamesViewModel
 
@@ -32,9 +34,20 @@ fun GamesScreen(
     val loading by viewModel.loading.collectAsState()
     val error by viewModel.error.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
+    val recommendations by viewModel.recommendations.collectAsState()
 
+    // ⚡ userId desde DataStore (prefs)
+    val context = LocalContext.current
+    val prefs = remember { UserPreferences(context) }
+    val storedUserId by prefs.userIdFlow.collectAsState(initial = null)
+
+    // carga inicial
     LaunchedEffect(Unit) {
         viewModel.loadPopular()
+    }
+    // carga recomendaciones cuando tengamos userId
+    LaunchedEffect(storedUserId) {
+        storedUserId?.let { uid -> viewModel.loadRecommendations(uid) }
     }
 
     Surface(
@@ -77,44 +90,34 @@ fun GamesScreen(
             }
 
             if (!isSearching) {
-                // SECCIÓN: Juegos Populares
+
+                // === RECOMENDADOS PARA TI ===
+                if (!recommendations.isNullOrEmpty()) {
+                    item {
+                        Text(
+                            text = "Recomendados para ti",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                        )
+                    }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(recommendations, key = { it.id }) { rec ->
+                                GamePreviewCard(
+                                    game = rec,
+                                    onClick = { id -> navController.navigate("gameDetail/$id") }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // === JUEGOS POPULARES ===
                 if (popular.isNotEmpty()) {
                     item {
                         Text(
                             text = "Juegos Populares",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                        )
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(popular, key = { it.id }) { game ->
-                                GameCard(game = game, navController = navController)
-                            }
-                        }
-                    }
-
-                    // (Opcional) Otras secciones reutilizando 'popular' como placeholder:
-                    item {
-                        Text(
-                            text = "Basado en tus preferencias",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                        )
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(popular, key = { it.id }) { game ->
-                                GameCard(game = game, navController = navController)
-                            }
-                        }
-                    }
-
-                    item {
-                        Text(
-                            text = "Los favoritos de tus amigos",
                             style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onBackground,
                             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)

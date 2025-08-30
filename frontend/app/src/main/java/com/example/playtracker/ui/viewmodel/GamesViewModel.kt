@@ -1,34 +1,49 @@
 package com.example.playtracker.ui.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.playtracker.domain.model.Game
+import com.example.playtracker.domain.model.GamePreview
 import com.example.playtracker.data.repository.GameRepository
-import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.repository.RecommendationsRepository
 import com.example.playtracker.data.repository.impl.GameRepositoryImpl
+import com.example.playtracker.data.repository.impl.RecommendationsRepositoryImpl
+import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.remote.service.RecommendationsApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class GamesViewModel(
-    private val repo: GameRepository
+    private val repo: GameRepository,
+    private val recRepo: RecommendationsRepository
 ) : ViewModel() {
+    private val _recError = MutableStateFlow<String?>(null)
+    val recError = _recError.asStateFlow()
 
+    // Populares
     private val _popular = MutableStateFlow<List<Game>>(emptyList())
-    val popular = _popular.asStateFlow()
+    val popular: StateFlow<List<Game>> = _popular.asStateFlow()
 
+    // Búsqueda
     private val _searchResults = MutableStateFlow<List<Game>>(emptyList())
-    val searchResults = _searchResults.asStateFlow()
+    val searchResults: StateFlow<List<Game>> = _searchResults.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
-    val loading = _loading.asStateFlow()
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
-    val error = _error.asStateFlow()
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     private val _isSearching = MutableStateFlow(false)
-    val isSearching = _isSearching.asStateFlow()
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
+
+    // Recomendaciones
+    private val _recommendations = MutableStateFlow<List<GamePreview>>(emptyList())
+    val recommendations: StateFlow<List<GamePreview>> = _recommendations.asStateFlow()
 
     fun loadPopular() = viewModelScope.launch {
         _loading.value = true
@@ -38,6 +53,23 @@ class GamesViewModel(
             .onSuccess { _popular.value = it }
             .onFailure { _error.value = it.message ?: "Error cargando populares" }
         _loading.value = false
+    }
+
+    fun loadRecommendations(userId: Int, topK: Int = 20) = viewModelScope.launch {
+        if (userId <= 0) {
+            Log.e("REC", "userId inválido: $userId (no se llama al backend)")
+            return@launch
+        }
+        _recError.value = null
+        try {
+            Log.d("REC", "Llamando a recomendaciones con userId=$userId topK=$topK")
+            val items = recRepo.getRecommendations(userId, topK)
+            _recommendations.value = items
+            Log.d("REC", "OK -> ${items.size} recomendaciones")
+        } catch (e: Exception) {
+            _recError.value = e.message
+            Log.e("REC", "FALLO recomendaciones", e)  // imprime stacktrace y mensaje
+        }
     }
 
     fun search(q: String) = viewModelScope.launch {
@@ -59,10 +91,11 @@ class GamesViewModel(
         fun factory(): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                // Implementación mínima sin DI: repo que usa RetrofitInstance por dentro
-                val repo = GameRepositoryImpl(RetrofitInstance.gameApi)
-                return GamesViewModel(repo) as T
+                val gameRepo = GameRepositoryImpl(RetrofitInstance.gameApi)
+                val recRepo = RecommendationsRepositoryImpl(RetrofitInstance.recommendationsApi)
+                return GamesViewModel(gameRepo, recRepo) as T
             }
         }
     }
+
 }

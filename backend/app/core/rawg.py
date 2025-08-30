@@ -83,11 +83,11 @@ async def get_game_details(game_id: int):
 
 
 # Obtener juegos populares
-async def get_popular_games(page: int = 1):
+async def get_popular_games(page: int = 1, size: int=10):
     params = {
         "key": settings.RAWG_API_KEY,
         "ordering": "-rating",
-        "page_size": 10,
+        "page_size": size,
         "page": page
     }
     async with httpx.AsyncClient() as client:
