@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 package com.example.playtracker.ui.screen
 
 import android.widget.Toast
@@ -17,7 +19,11 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +40,11 @@ import com.example.playtracker.data.local.datastore.UserPreferences
 import com.example.playtracker.domain.model.Friend
 import com.example.playtracker.domain.model.UserGame
 import com.example.playtracker.ui.viewmodel.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun UserScreen(
@@ -164,9 +175,13 @@ fun UserScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
                                 ) {
-                                    Row(modifier = Modifier.padding(12.dp)) {
+                                    Row(modifier = Modifier.padding(12.dp)
+                                    ) {
                                         Image(
                                             painter = rememberAsyncImagePainter(R.drawable.default_avatar),
                                             contentDescription = null,
@@ -189,7 +204,10 @@ fun UserScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp),
-                                    shape = RoundedCornerShape(12.dp)
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
                                 ) {
                                     Row(modifier = Modifier.padding(12.dp)) {
                                         val img = fav.imageUrl
@@ -226,13 +244,57 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // --- Completados ---
-                        val completedCount = ui.completed.size
-                        Text("Juegos completados ($completedCount)", style = MaterialTheme.typography.titleMedium)
+                        // --- Selector de estado + lista ---
+                        val statusOptions = listOf("Por jugar", "Jugando", "Completado")
+                        var selectedIndex by rememberSaveable { mutableStateOf(2) } // por defecto "Completado"
+                        val selectedStatus = statusOptions[selectedIndex]
+                        val filteredCount = remember(ui.userGames, selectedStatus) {
+                            ui.userGames.count { it.status?.equals(selectedStatus, ignoreCase = true) == true }
+                        }
 
-                        if (ui.completed.isEmpty()) {
+                        Text("Juegos ($selectedStatus) ($filteredCount)", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            SingleChoiceSegmentedButtonRow {
+                                statusOptions.forEachIndexed { index, label ->
+                                    SegmentedButton(
+                                        selected = selectedIndex == index,
+                                        onClick = { selectedIndex = index },
+                                        shape = SegmentedButtonDefaults.itemShape(index, statusOptions.size),
+                                        colors = SegmentedButtonDefaults.colors(
+                                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                                            inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                                            inactiveContentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        icon = {}
+                                    ) {
+                                        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                    }
+                                }
+                            }
+                        }
+
+                        val filteredUG = remember(ui.userGames, selectedStatus) {
+                            ui.userGames.filter { it.status?.equals(selectedStatus, ignoreCase = true) == true }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        if (filteredUG.isEmpty()) {
+                            val emptyMsg = when (selectedStatus) {
+                                "Por jugar" -> "Aún no hay juegos por jugar."
+                                "Jugando" -> "Aún no hay juegos en progreso."
+                                else -> "Aún no hay juegos completados."
+                            }
                             Text(
-                                "Aún no hay juegos completados.",
+                                emptyMsg,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
@@ -241,7 +303,7 @@ fun UserScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             ) {
-                                items(ui.completed, key = { it.id }) { ug: UserGame ->
+                                items(filteredUG, key = { it.id }) { ug: UserGame ->
                                     Card(
                                         onClick = { navController.navigate("gameDetail/${ug.gameRawgId}") },
                                         modifier = Modifier
@@ -294,49 +356,11 @@ fun UserScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
 
-                        // --- Reseñas ---
-                        Text("Reseñas (${ui.reviews.size})", style = MaterialTheme.typography.titleMedium)
-
-                        if (ui.reviews.isEmpty()) {
-                            Text(
-                                "Aún no hay reseñas.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
-                        } else {
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                items(ui.reviews, key = { it.id }) { ug ->
-                                    Card(
-                                        onClick = { navController.navigate("gameDetail/${ug.gameRawgId}") },
-                                        shape = RoundedCornerShape(12.dp),
-                                        modifier = Modifier.width(260.dp)
-                                    ) {
-                                        Row(modifier = Modifier.padding(12.dp)) {
-                                            val painter = rememberAsyncImagePainter(model = ug.imageUrl ?: R.drawable.default_avatar)
-                                            Image(
-                                                painter = painter,
-                                                contentDescription = null,
-                                                modifier = Modifier
-                                                    .size(64.dp)
-                                                    .clip(RoundedCornerShape(8.dp)),
-                                                contentScale = ContentScale.Crop
-                                            )
-                                            Spacer(Modifier.width(12.dp))
-                                            Column(Modifier.weight(1f)) {
-                                                Text(ug.gameTitle ?: "Juego", style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                                                Spacer(Modifier.height(4.dp))
-                                                StarRowFrom100(score100 = ug.score, size = 14.dp)
-                                                Spacer(Modifier.height(6.dp))
-                                                Text(ug.notes.orEmpty(), style = MaterialTheme.typography.bodySmall, maxLines = 3)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        // --- Reseñas en carrusel ---
+                        UserReviewsSection(
+                            reviews = ui.reviews,
+                            navController = navController
+                        )
 
                         HorizontalDivider(
                             modifier = Modifier.padding(vertical = 16.dp),
@@ -359,29 +383,41 @@ fun UserScreen(
                                 modifier = Modifier.padding(top = 12.dp)
                             ) {
                                 items(ui.friends, key = { it.id }) { friend: Friend ->
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    Card(
+                                        onClick = { navController.navigate("user/${friend.id}") },
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.surface
+                                        ),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                                         modifier = Modifier
-                                            .width(88.dp)
-                                            .clickable { navController.navigate("user/${friend.id}") }
+                                            .width(120.dp)
+                                            .wrapContentHeight()
                                     ) {
-                                        val avatar = rememberAsyncImagePainter(
-                                            model = friend.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
-                                        )
-                                        Image(
-                                            painter = avatar,
-                                            contentDescription = "Avatar de ${friend.name}",
-                                            modifier = Modifier
-                                                .size(64.dp)
-                                                .clip(CircleShape)
-                                        )
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(
-                                            friend.name,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            maxLines = 1,
-                                            textAlign = TextAlign.Center
-                                        )
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.padding(12.dp)
+                                        ) {
+                                            val avatar = rememberAsyncImagePainter(
+                                                model = friend.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                                            )
+                                            Image(
+                                                painter = avatar,
+                                                contentDescription = "Avatar de ${friend.name}",
+                                                modifier = Modifier
+                                                    .size(72.dp)
+                                                    .clip(CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Spacer(Modifier.height(8.dp))
+                                            Text(
+                                                friend.name,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -484,6 +520,173 @@ private fun StarRowFrom100(
                 tint = if (i < stars) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(size)
+            )
+        }
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun UserReviewsSection(
+    reviews: List<UserGame>,
+    navController: NavController
+) {
+    val display = remember(reviews) {
+        reviews.filter { !it.notes.isNullOrBlank() || (it.score ?: 0) > 0 }
+    }
+
+    Text(
+        "Reseñas (${display.size})",
+        style = MaterialTheme.typography.titleMedium
+    )
+
+    Spacer(Modifier.height(15.dp))
+
+    when {
+        display.isEmpty() -> {
+            Text(
+                "Aún no hay reseñas.",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+        else -> {
+            UserReviewsCarousel(display, navController)
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun UserReviewsCarousel(
+    reviews: List<UserGame>,
+    navController: NavController
+) {
+    val reviewHeight = 200.dp // altura fija del hueco de reseñas
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { reviews.size })
+
+    LaunchedEffect(reviews.size) {
+        if (reviews.isEmpty()) return@LaunchedEffect
+        while (true) {
+            kotlinx.coroutines.delay(3500)
+            if (!pagerState.isScrollInProgress) {
+                val next = (pagerState.currentPage + 1) % reviews.size
+                pagerState.animateScrollToPage(next)
+            }
+        }
+    }
+
+    Column {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(reviewHeight)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                pageSpacing = 12.dp,
+                modifier = Modifier.matchParentSize()
+            ) { page ->
+                val ug = reviews.getOrNull(page) ?: return@HorizontalPager
+                UserReviewCard(
+                    ug = ug,
+                    onClick = { navController.navigate("gameDetail/${ug.gameRawgId}") },
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .fillMaxWidth()
+                        .height(reviewHeight)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(reviews.size) { i ->
+                val selected = i == (pagerState.currentPage % reviews.size)
+                Box(
+                    Modifier
+                        .padding(horizontal = 3.dp)
+                        .size(if (selected) 9.dp else 7.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant
+                        )
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+}
+
+@Composable
+private fun UserReviewCard(
+    ug: UserGame,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp
+    ) {
+        // Estructura en columna para fijar cabecera arriba y texto abajo
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(12.dp)
+        ) {
+            // Cabecera: imagen izquierda, título derecha y debajo las estrellas
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(ug.imageUrl ?: R.drawable.default_avatar),
+                    contentDescription = ug.gameTitle,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        ug.gameTitle ?: "Juego",
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1
+                    )
+                    // Puntuación del usuario (estrellas desde 0..100)
+                    StarRowFrom100(score100 = ug.score, size = 20.dp)
+                }
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Texto de la reseña ocupando el resto del alto disponible
+            Text(
+                text = ug.notes.orEmpty(),
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
