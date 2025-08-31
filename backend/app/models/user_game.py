@@ -10,6 +10,10 @@ class UserGame(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     game_rawg_id = Column(Integer, nullable=False)
+    game_title = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    release_year = Column(Integer, nullable=True)
+
     status = Column(String)        # "jugando", "terminado", etc.
     score = Column(Integer)        # nota del usuario
     notes = Column(String)         # comentario personal

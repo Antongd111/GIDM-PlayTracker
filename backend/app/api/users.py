@@ -6,7 +6,8 @@ from app.schemas.user import UserOut, UserCreate, UserUpdate
 from app.crud import user as crud_user
 from app.core.dependencies import get_current_user
 from app.models.user import User
-
+from app.schemas.game import GamePreview
+from app.crud.user import get_friends_games
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -18,6 +19,12 @@ async def get_db():
 async def read_users(db: AsyncSession = Depends(get_db)):
     return await crud_user.get_users(db)
 
+@router.get("/{user_id}/friends/games", response_model=List[GamePreview])
+async def friends_games_endpoint(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    return await get_friends_games(db, user_id=user_id, limit=10)
 
 @router.get("/me", response_model=UserOut)
 async def get_me(current_user: User = Depends(get_current_user)):

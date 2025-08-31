@@ -10,6 +10,10 @@ import com.example.playtracker.data.repository.RecommendationsRepository
 import com.example.playtracker.data.repository.impl.GameRepositoryImpl
 import com.example.playtracker.data.repository.impl.RecommendationsRepositoryImpl
 import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.repository.FriendsRepository
+import com.example.playtracker.data.repository.UserRepository
+import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
+import com.example.playtracker.data.repository.impl.UserRepositoryImpl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ class GamesViewModel : ViewModel() {
         GameRepositoryImpl(RetrofitInstance.gameApi)
     private val recRepo: RecommendationsRepository =
         RecommendationsRepositoryImpl(RetrofitInstance.recommendationsApi)
+    private val userRepo: UserRepository =
+        UserRepositoryImpl(RetrofitInstance.userApi, RetrofitInstance.friendsApi)
 
     private val _recError = MutableStateFlow<String?>(null)
     val recError = _recError.asStateFlow()
@@ -46,6 +52,11 @@ class GamesViewModel : ViewModel() {
     // Recomendaciones
     private val _recommendations = MutableStateFlow<List<GamePreview>>(emptyList())
     val recommendations: StateFlow<List<GamePreview>> = _recommendations.asStateFlow()
+
+    private val _friendsGames = MutableStateFlow<List<GamePreview>>(emptyList())
+    val friendsGames: StateFlow<List<GamePreview>> = _friendsGames.asStateFlow()
+    private val _friendsError = MutableStateFlow<String?>(null)
+    val friendsError: StateFlow<String?> = _friendsError.asStateFlow()
 
     fun loadPopular() = viewModelScope.launch {
         _loading.value = true
@@ -72,6 +83,14 @@ class GamesViewModel : ViewModel() {
             _recError.value = e.message
             Log.e("REC", "FALLO recomendaciones", e)
         }
+    }
+
+    fun loadPlayedByFriends(userId: Int) = viewModelScope.launch {
+        if (userId <= 0) return@launch
+        _friendsError.value = null
+        runCatching { userRepo.getFriendGames(userId) }
+            .onSuccess { _friendsGames.value = it }
+            .onFailure { _friendsError.value = it.message ?: "Error cargando juegos de amigos" }
     }
 
     fun search(q: String) = viewModelScope.launch {

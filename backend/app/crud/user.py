@@ -1,9 +1,16 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import update, delete, or_
+from sqlalchemy import select, and_, or_, func
+from sqlalchemy import update, delete
+from typing import List
 from app.models.user import User
+from app.models.user_game import UserGame
 from app.schemas.user import UserCreate, UserUpdate
 from passlib.context import CryptContext
+
+from app.models.user_game import UserGame
+from app.models.friendship import Friendship, FriendshipStatus
+from app.schemas.game import GamePreview
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -60,3 +67,39 @@ async def search_users(db: AsyncSession, query: str):
         )
     )
     return result.scalars().all()
+
+
+async def get_friends_games(
+    db: AsyncSession,
+    user_id: int,
+    limit: int = 10
+) -> List[GamePreview]:
+    """
+    Devuelve hasta `limit` GamePreview de juegos de los amigos aceptados del usuario,
+    tomando juegos con estado 'Completado', agrupados por game_rawg_id, en orden aleatorio.
+    """
+    stmt = (
+        select(
+            UserGame.game_rawg_id.label("id"),
+            func.max(UserGame.game_title).label("title"),
+            func.max(UserGame.image_url).label("imageUrl"),
+            func.max(UserGame.release_year).label("year"),
+        )
+        .join(
+            Friendship,
+            or_(
+                and_(Friendship.user_id_a == user_id, UserGame.user_id == Friendship.user_id_b),
+                and_(Friendship.user_id_b == user_id, UserGame.user_id == Friendship.user_id_a),
+            ),
+        )
+        .where(
+            Friendship.status == FriendshipStatus.accepted,
+            UserGame.status == "Completado",
+        )
+        .group_by(UserGame.game_rawg_id)
+        .order_by(func.random())
+        .limit(limit)
+    )
+
+    rows = await db.execute(stmt)
+    return [GamePreview(**m) for m in rows.mappings().all()]

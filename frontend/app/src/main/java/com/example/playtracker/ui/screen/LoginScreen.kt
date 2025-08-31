@@ -102,7 +102,7 @@ fun LoginScreen(navController: NavController) {
                                     }
 
                                     // Navega a home
-                                    navController.navigate("home") {
+                                    navController.navigate("main") {
                                         popUpTo("login") { inclusive = true }
                                         launchSingleTop = true
                                     }

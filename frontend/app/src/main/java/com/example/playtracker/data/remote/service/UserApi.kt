@@ -1,5 +1,6 @@
 package com.example.playtracker.data.remote.service
 
+import com.example.playtracker.data.remote.dto.game.GamePreviewDto
 import com.example.playtracker.data.remote.dto.user.UpdateUserDto
 import com.example.playtracker.data.remote.dto.user.UserDto
 import retrofit2.http.Body
@@ -18,6 +19,10 @@ interface UserApi {
     // Obtener perfil del usuario actual
     @GET("users/me")
     suspend fun getCurrentUser(@Header("Authorization") token: String): UserDto
+
+    // Obtener los juegos de los amigos del usuario
+    @GET("users/{userId}/friends/games")
+    suspend fun getFriendsGames(@Path("userId") userId: Int): List<GamePreviewDto>
 
     // Obtener perfil de un usuario por ID
     @GET("users/{id}")

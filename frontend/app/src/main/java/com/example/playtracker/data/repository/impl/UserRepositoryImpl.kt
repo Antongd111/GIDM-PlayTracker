@@ -7,6 +7,7 @@ import com.example.playtracker.data.remote.service.FriendsApi
 import com.example.playtracker.domain.model.User
 import com.example.playtracker.domain.model.Friend
 import com.example.playtracker.data.repository.UserRepository
+import com.example.playtracker.domain.model.GamePreview
 
 class UserRepositoryImpl(
     private val users: UserApi,
@@ -32,5 +33,15 @@ class UserRepositoryImpl(
             token = bearer
         )
         return updated.toDomain()
+    }
+
+    override suspend fun getFriendGames(id: Int): List<GamePreview> =
+        users.getFriendsGames(id).map { dto ->
+        GamePreview(
+            id = dto.id,
+            title = dto.title,
+            imageUrl = dto.imageUrl,
+            year = dto.year ?: 0,
+        )
     }
 }
