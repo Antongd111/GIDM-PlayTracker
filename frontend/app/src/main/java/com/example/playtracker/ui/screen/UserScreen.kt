@@ -31,8 +31,8 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.R
 import com.example.playtracker.data.local.datastore.UserPreferences
-import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.Friend
+import com.example.playtracker.domain.model.UserGame
 import com.example.playtracker.ui.viewmodel.*
 
 @Composable
@@ -40,23 +40,18 @@ fun UserScreen(
     navController: NavController,
     userId: Int
 ) {
-    // ViewModel sin factory: queda escopado a esta pantalla e identificado por el userId
     val viewModel: UserViewModel = viewModel(key = "UserVM_$userId")
 
-    // Sesión (token/bearer) desde DataStore
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer = token?.let { "Bearer $it" }
 
-    // Estado de scroll y del propio ViewModel
     val scroll = rememberScrollState()
     val ui by viewModel.ui.collectAsState()
 
-    // Modal de edición (solo si es tu propio perfil)
     var showEditDialog by remember { mutableStateOf(false) }
 
-    // Carga/recarga del perfil al entrar o cuando cambie el token
     LaunchedEffect(userId, token) {
         viewModel.load(userId, token)
     }
@@ -64,17 +59,12 @@ fun UserScreen(
     fun snack(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 
     when {
-        // Cargando perfil la primera vez
         ui.loading && ui.user == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
-
-        // Error duro (no hay datos que mostrar)
         ui.error != null && ui.user == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(ui.error ?: "Error")
         }
-
-        // Contenido del perfil
         ui.user != null -> {
             val u = ui.user!!
 
@@ -85,7 +75,7 @@ fun UserScreen(
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
 
-                    // ===== Header: avatar, nombre y botón editar (si es tuyo) =====
+                    // ===== Header =====
                     val avatarSize = 100.dp
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -123,7 +113,7 @@ fun UserScreen(
                         }
                     }
 
-                    // ===== Fila de acciones (seguir / pendiente / amigos) =====
+                    // ===== Acciones amistad =====
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -134,7 +124,6 @@ fun UserScreen(
                         Spacer(modifier = Modifier.weight(1f))
 
                         if (!ui.isOwn) {
-                            // Texto y habilitación del botón según estado actual
                             val (label, enabled) = when (ui.friendState) {
                                 FriendState.NONE -> "Seguir" to !ui.workingFriend
                                 FriendState.PENDING_SENT -> "Pendiente..." to !ui.workingFriend
@@ -158,7 +147,7 @@ fun UserScreen(
                         }
                     }
 
-                    // ===== Cuerpo scrollable: favorito, completados, reseñas, amigos =====
+                    // ===== Cuerpo scroll =====
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -166,11 +155,10 @@ fun UserScreen(
                             .verticalScroll(scroll)
                             .weight(1f)
                     ) {
-                        // --- Juego favorito ---
+                        // --- Favorito ---
                         Text("Juego favorito", style = MaterialTheme.typography.titleMedium)
 
                         when {
-                            // Estado vacío: aviso simple
                             ui.favorite == null -> {
                                 Card(
                                     modifier = Modifier
@@ -194,21 +182,20 @@ fun UserScreen(
                                     }
                                 }
                             }
-                            // Tarjeta del favorito con navegación a detalle
                             else -> {
-                                val game = ui.favorite!!
+                                val fav = ui.favorite!!
                                 Card(
-                                    onClick = { navController.navigate("gameDetail/${game.id}") },
+                                    onClick = { navController.navigate("gameDetail/${fav.gameRawgId}") },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
                                     Row(modifier = Modifier.padding(12.dp)) {
-                                        val imageUrl = game.imageUrl
+                                        val img = fav.imageUrl
                                         Image(
                                             painter = rememberAsyncImagePainter(
-                                                model = imageUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                                                model = img?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                             ),
                                             contentDescription = null,
                                             modifier = Modifier
@@ -218,10 +205,9 @@ fun UserScreen(
                                         )
                                         Spacer(Modifier.width(12.dp))
                                         Column(Modifier.weight(1f)) {
-                                            Text(game.title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                                            Text(fav.gameTitle ?: "Juego", style = MaterialTheme.typography.titleMedium, maxLines = 1)
                                             Spacer(Modifier.height(4.dp))
-                                            val favScore100 = ui.userGames.firstOrNull { it.gameRawgId == game.id }?.score
-                                            StarRowFrom100(score100 = favScore100, size = 16.dp)
+                                            StarRowFrom100(score100 = fav.score, size = 16.dp)
                                             Spacer(Modifier.height(6.dp))
                                             Text(
                                                 "Ver detalles",
@@ -255,9 +241,9 @@ fun UserScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             ) {
-                                items(ui.completed, key = { it.id }) { game: Game ->
+                                items(ui.completed, key = { it.id }) { ug: UserGame ->
                                     Card(
-                                        onClick = { navController.navigate("gameDetail/${game.id}") },
+                                        onClick = { navController.navigate("gameDetail/${ug.gameRawgId}") },
                                         modifier = Modifier
                                             .width(160.dp)
                                             .wrapContentHeight(),
@@ -271,10 +257,10 @@ fun UserScreen(
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             modifier = Modifier.padding(8.dp)
                                         ) {
-                                            val imageUrl = game.imageUrl
+                                            val img = ug.imageUrl
                                             Image(
                                                 painter = rememberAsyncImagePainter(
-                                                    model = imageUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                                                    model = img?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                                 ),
                                                 contentDescription = null,
                                                 modifier = Modifier
@@ -285,18 +271,17 @@ fun UserScreen(
                                             )
                                             Spacer(Modifier.height(8.dp))
                                             Text(
-                                                game.title,
+                                                ug.gameTitle ?: "Juego",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 modifier = Modifier.fillMaxWidth(),
                                                 maxLines = 1,
                                                 textAlign = TextAlign.Center
                                             )
                                             Spacer(Modifier.height(4.dp))
-                                            val score100 = ui.userGames.firstOrNull { it.gameRawgId == game.id }?.score
                                             Row(
                                                 horizontalArrangement = Arrangement.Center,
                                                 modifier = Modifier.fillMaxWidth()
-                                            ) { StarRowFrom100(score100 = score100, size = 14.dp) }
+                                            ) { StarRowFrom100(score100 = ug.score, size = 14.dp) }
                                         }
                                     }
                                 }
@@ -323,14 +308,14 @@ fun UserScreen(
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.padding(top = 8.dp)
                             ) {
-                                items(ui.reviews, key = { it.rawgId.toString() + (it.addedAt ?: "") }) { r ->
+                                items(ui.reviews, key = { it.id }) { ug ->
                                     Card(
-                                        onClick = { navController.navigate("gameDetail/${r.rawgId}") },
+                                        onClick = { navController.navigate("gameDetail/${ug.gameRawgId}") },
                                         shape = RoundedCornerShape(12.dp),
                                         modifier = Modifier.width(260.dp)
                                     ) {
                                         Row(modifier = Modifier.padding(12.dp)) {
-                                            val painter = rememberAsyncImagePainter(model = r.imageUrl ?: R.drawable.default_avatar)
+                                            val painter = rememberAsyncImagePainter(model = ug.imageUrl ?: R.drawable.default_avatar)
                                             Image(
                                                 painter = painter,
                                                 contentDescription = null,
@@ -341,11 +326,11 @@ fun UserScreen(
                                             )
                                             Spacer(Modifier.width(12.dp))
                                             Column(Modifier.weight(1f)) {
-                                                Text(r.title, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                                                Text(ug.gameTitle ?: "Juego", style = MaterialTheme.typography.titleSmall, maxLines = 1)
                                                 Spacer(Modifier.height(4.dp))
-                                                StarRowFrom100(score100 = r.score, size = 14.dp)
+                                                StarRowFrom100(score100 = ug.score, size = 14.dp)
                                                 Spacer(Modifier.height(6.dp))
-                                                Text(r.text, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                                                Text(ug.notes.orEmpty(), style = MaterialTheme.typography.bodySmall, maxLines = 3)
                                             }
                                         }
                                     }
@@ -406,7 +391,6 @@ fun UserScreen(
                     }
                 }
 
-                // Diálogo de edición de perfil (propio)
                 if (ui.isOwn) {
                     EditProfileDialog(
                         isOpen = showEditDialog,
@@ -414,10 +398,12 @@ fun UserScreen(
                         initialStatus = u.status,
                         onDismiss = { showEditDialog = false },
                         onSave = { newName, newStatus ->
-                            val b = bearer ?: return@EditProfileDialog snack("Necesitas iniciar sesión")
+                            val b = bearer ?: return@EditProfileDialog Toast
+                                .makeText(context, "Necesitas iniciar sesión", Toast.LENGTH_SHORT)
+                                .show()
                             viewModel.updateProfile(newName, newStatus, b)
                             showEditDialog = false
-                            snack("Perfil actualizado")
+                            Toast.makeText(context, "Perfil actualizado", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
@@ -488,7 +474,7 @@ private fun StarRowFrom100(
     size: Dp = 16.dp
 ) {
     val s = (score100 ?: 0).coerceIn(0, 100)
-    val stars = ((s + 10) / 20) // redondeo al entero más cercano
+    val stars = ((s + 10) / 20)
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         repeat(maxStars) { i ->

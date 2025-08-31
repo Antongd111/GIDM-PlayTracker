@@ -3,7 +3,6 @@ package com.example.playtracker.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.playtracker.domain.model.User
-import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.Friend
 import com.example.playtracker.domain.model.UserGame
 import com.example.playtracker.data.repository.UserRepository
@@ -13,30 +12,20 @@ import com.example.playtracker.data.repository.impl.UserRepositoryImpl
 import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
 import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
 import com.example.playtracker.data.remote.service.RetrofitInstance
-import com.example.playtracker.data.remote.service.GameApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-data class UserReviewItem(
-    val rawgId: Long,
-    val title: String,
-    val imageUrl: String?,
-    val score: Int?,
-    val text: String,
-    val addedAt: String?
-)
-
 data class UserUiState(
     val loading: Boolean = true,
     val user: User? = null,
-    val favorite: Game? = null,
-    val completed: List<Game> = emptyList(),
+    val favorite: UserGame? = null,
+    val completed: List<UserGame> = emptyList(),
     val friends: List<Friend> = emptyList(),
     val isOwn: Boolean = false,
     val friendState: FriendState = FriendState.NONE,
     val userGames: List<UserGame> = emptyList(),
-    val reviews: List<UserReviewItem> = emptyList(),
+    val reviews: List<UserGame> = emptyList(),
     val workingFriend: Boolean = false,
     val error: String? = null
 )
@@ -50,70 +39,37 @@ class UserViewModel : ViewModel() {
         UserGameRepositoryImpl(RetrofitInstance.userGameApi, RetrofitInstance.gameApi)
     private val friendsRepo: FriendsRepository =
         FriendsRepositoryImpl(RetrofitInstance.friendsApi)
-    private val gameApi: GameApi = RetrofitInstance.gameApi
 
     private val _ui = MutableStateFlow(UserUiState())
     val ui: StateFlow<UserUiState> = _ui
 
-    /** Carga todo para la pantalla de perfil. */
+    /** Carga todo para la pantalla de perfil SOLO desde userGames (sin GameApi). */
     fun load(userId: Int, token: String?) {
         viewModelScope.launch {
             _ui.value = UserUiState(loading = true)
             val bearer = token?.let { "Bearer $it" }
 
             runCatching {
+                // 1) Usuario y (si hay sesión) mi id
                 val meId = if (bearer != null) users.me(bearer).id else null
                 val user = users.getUser(userId)
 
-                val allUG = userGamesRepo.listByUser(userId)
+                // 2) Todos los UserGame del usuario
+                val allUG: List<UserGame> = userGamesRepo.listByUser(userId)
 
-                val completedUG = allUG.filter { it.status?.equals("COMPLETADO", ignoreCase = true) == true }
-                val reviewedUG = allUG.filter { !it.notes.isNullOrBlank() }
+                // 3) Completados (solo filtramos por estado)
+                val completedUG = allUG.filter { it.status?.equals("Completado", ignoreCase = true) == true }
 
-                val neededRawgIds = buildSet {
-                    addAll(completedUG.map { it.gameRawgId })
-                    addAll(reviewedUG.map { it.gameRawgId })
-                    user.favoriteRawgId?.let { add(it) }
-                }.toList()
-
-                val details = neededRawgIds.associateWith { id -> gameApi.getGameDetails(id) }
-
-                val completedGames: List<Game> = completedUG.mapNotNull { ug ->
-                    val dto = details[ug.gameRawgId] ?: return@mapNotNull null
-                    Game(
-                        id = dto.id,
-                        title = dto.title,
-                        imageUrl = dto.imageUrl,
-                        year = dto.releaseDate?.take(4)?.toIntOrNull(),
-                        rating = dto.rating
-                    )
+                // 4) Favorito: intentamos localizarlo en la propia lista
+                val favoriteUG: UserGame? = user.favoriteRawgId?.let { favId ->
+                    allUG.firstOrNull { it.gameRawgId == favId }
                 }
 
-                val favorite = user.favoriteRawgId?.let { favId ->
-                    val dto = details[favId] ?: gameApi.getGameDetails(favId)
-                    Game(
-                        id = dto.id,
-                        title = dto.title,
-                        imageUrl = dto.imageUrl,
-                        year = dto.releaseDate?.take(4)?.toIntOrNull(),
-                        rating = dto.rating
-                    )
-                }
+                // 5) Reseñas: los que tengan `notes` no vacías
+                val reviewsUG = allUG.filter { !it.notes.isNullOrBlank() }
 
-                val reviews: List<UserReviewItem> = reviewedUG.mapNotNull { ug ->
-                    val dto = details[ug.gameRawgId] ?: return@mapNotNull null
-                    UserReviewItem(
-                        rawgId = ug.gameRawgId,
-                        title = dto.title,
-                        imageUrl = dto.imageUrl,
-                        score = ug.score,
-                        text = ug.notes!!,
-                        addedAt = ug.addedAt
-                    )
-                }
-
+                // 6) Amigos y estado de amistad (si hay sesión)
                 val friends = if (bearer != null) users.getFriendsOf(userId, bearer) else emptyList()
-
                 val isOwn = meId != null && meId == user.id
                 val friendState = if (!isOwn && bearer != null) {
                     val currentFriends = friendsRepo.listFriends(bearer).getOrElse { emptyList() }
@@ -127,13 +83,13 @@ class UserViewModel : ViewModel() {
 
                 LoadedBundle(
                     user = user,
-                    completed = completedGames,
-                    favorite = favorite,
+                    completed = completedUG,
+                    favorite = favoriteUG,
                     friends = friends,
                     isOwn = isOwn,
                     friendState = friendState,
                     allUG = allUG,
-                    reviews = reviews
+                    reviews = reviewsUG
                 )
             }.onSuccess { b ->
                 _ui.value = UserUiState(
@@ -228,12 +184,12 @@ class UserViewModel : ViewModel() {
 
     private data class LoadedBundle(
         val user: User,
-        val completed: List<Game>,
-        val favorite: Game?,
+        val completed: List<UserGame>,
+        val favorite: UserGame?,
         val friends: List<Friend>,
         val isOwn: Boolean,
         val friendState: FriendState,
         val allUG: List<UserGame>,
-        val reviews: List<UserReviewItem>
+        val reviews: List<UserGame>
     )
 }

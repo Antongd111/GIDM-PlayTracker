@@ -5,10 +5,15 @@ import com.example.playtracker.domain.model.UserGame
 
 fun UserGameDto.toDomain() = UserGame(
     id = id,
-    userId = user_id,
-    gameRawgId = game_rawg_id,
+    userId = userId,
+    gameRawgId = gameRawgId,
     status = status,
     score = score,
     notes = notes,
-    addedAt = added_at
+    addedAt = addedAt,
+    reviewUpdatedAt = reviewUpdatedAt,
+    containsSpoilers = containsSpoilers,
+    gameTitle = gameTitle,
+    imageUrl = imageUrl,
+    releaseYear = releaseYear?.toString()
 )
