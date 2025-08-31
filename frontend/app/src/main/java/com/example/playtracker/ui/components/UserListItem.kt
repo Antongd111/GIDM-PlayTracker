@@ -37,7 +37,6 @@ fun UserListItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // ⬇️ HAZ CLICKABLE SOLO EL BLOQUE IZQUIERDO (avatar + textos)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier

@@ -31,10 +31,6 @@ import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.R
 import com.example.playtracker.data.local.datastore.UserPreferences
-import com.example.playtracker.data.remote.service.RetrofitInstance
-import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
-import com.example.playtracker.data.repository.impl.UserRepositoryImpl
-import com.example.playtracker.data.repository.impl.FriendsRepositoryImpl
 import com.example.playtracker.domain.model.Game
 import com.example.playtracker.domain.model.Friend
 import com.example.playtracker.ui.viewmodel.*
@@ -44,19 +40,23 @@ fun UserScreen(
     navController: NavController,
     userId: Int
 ) {
-    // VM sin factory (crea deps internas). Key por usuario para instancia estable.
+    // ViewModel sin factory: queda escopado a esta pantalla e identificado por el userId
     val viewModel: UserViewModel = viewModel(key = "UserVM_$userId")
 
+    // Sesión (token/bearer) desde DataStore
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer = token?.let { "Bearer $it" }
 
+    // Estado de scroll y del propio ViewModel
     val scroll = rememberScrollState()
     val ui by viewModel.ui.collectAsState()
 
+    // Modal de edición (solo si es tu propio perfil)
     var showEditDialog by remember { mutableStateOf(false) }
 
+    // Carga/recarga del perfil al entrar o cuando cambie el token
     LaunchedEffect(userId, token) {
         viewModel.load(userId, token)
     }
@@ -64,12 +64,17 @@ fun UserScreen(
     fun snack(msg: String) = Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
 
     when {
+        // Cargando perfil la primera vez
         ui.loading && ui.user == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
+
+        // Error duro (no hay datos que mostrar)
         ui.error != null && ui.user == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(ui.error ?: "Error")
         }
+
+        // Contenido del perfil
         ui.user != null -> {
             val u = ui.user!!
 
@@ -80,8 +85,8 @@ fun UserScreen(
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
 
+                    // ===== Header: avatar, nombre y botón editar (si es tuyo) =====
                     val avatarSize = 100.dp
-
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -92,7 +97,7 @@ fun UserScreen(
                             .padding(top = 20.dp, bottom = 10.dp)
                     ) {
                         val avatarPainter = rememberAsyncImagePainter(
-                            model = if (!u.avatarUrl.isNullOrBlank()) u.avatarUrl else R.drawable.default_avatar
+                            model = u.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                         )
                         Image(
                             painter = avatarPainter,
@@ -118,6 +123,7 @@ fun UserScreen(
                         }
                     }
 
+                    // ===== Fila de acciones (seguir / pendiente / amigos) =====
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -128,6 +134,7 @@ fun UserScreen(
                         Spacer(modifier = Modifier.weight(1f))
 
                         if (!ui.isOwn) {
+                            // Texto y habilitación del botón según estado actual
                             val (label, enabled) = when (ui.friendState) {
                                 FriendState.NONE -> "Seguir" to !ui.workingFriend
                                 FriendState.PENDING_SENT -> "Pendiente..." to !ui.workingFriend
@@ -135,11 +142,7 @@ fun UserScreen(
                             }
                             Button(
                                 onClick = {
-                                    val b = bearer
-                                    if (b == null) {
-                                        snack("Necesitas iniciar sesión")
-                                        return@Button
-                                    }
+                                    val b = bearer ?: return@Button snack("Necesitas iniciar sesión")
                                     viewModel.toggleFriendAction(b)
                                 },
                                 enabled = enabled
@@ -155,6 +158,7 @@ fun UserScreen(
                         }
                     }
 
+                    // ===== Cuerpo scrollable: favorito, completados, reseñas, amigos =====
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -166,6 +170,7 @@ fun UserScreen(
                         Text("Juego favorito", style = MaterialTheme.typography.titleMedium)
 
                         when {
+                            // Estado vacío: aviso simple
                             ui.favorite == null -> {
                                 Card(
                                     modifier = Modifier
@@ -189,6 +194,7 @@ fun UserScreen(
                                     }
                                 }
                             }
+                            // Tarjeta del favorito con navegación a detalle
                             else -> {
                                 val game = ui.favorite!!
                                 Card(
@@ -202,7 +208,7 @@ fun UserScreen(
                                         val imageUrl = game.imageUrl
                                         Image(
                                             painter = rememberAsyncImagePainter(
-                                                model = if (!imageUrl.isNullOrBlank()) imageUrl else R.drawable.default_avatar
+                                                model = imageUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                             ),
                                             contentDescription = null,
                                             modifier = Modifier
@@ -268,7 +274,7 @@ fun UserScreen(
                                             val imageUrl = game.imageUrl
                                             Image(
                                                 painter = rememberAsyncImagePainter(
-                                                    model = if (!imageUrl.isNullOrBlank()) imageUrl else R.drawable.default_avatar
+                                                    model = imageUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                                 ),
                                                 contentDescription = null,
                                                 modifier = Modifier
@@ -290,9 +296,7 @@ fun UserScreen(
                                             Row(
                                                 horizontalArrangement = Arrangement.Center,
                                                 modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                StarRowFrom100(score100 = score100, size = 14.dp)
-                                            }
+                                            ) { StarRowFrom100(score100 = score100, size = 14.dp) }
                                         }
                                     }
                                 }
@@ -341,11 +345,7 @@ fun UserScreen(
                                                 Spacer(Modifier.height(4.dp))
                                                 StarRowFrom100(score100 = r.score, size = 14.dp)
                                                 Spacer(Modifier.height(6.dp))
-                                                Text(
-                                                    r.text,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    maxLines = 3
-                                                )
+                                                Text(r.text, style = MaterialTheme.typography.bodySmall, maxLines = 3)
                                             }
                                         }
                                     }
@@ -381,8 +381,7 @@ fun UserScreen(
                                             .clickable { navController.navigate("user/${friend.id}") }
                                     ) {
                                         val avatar = rememberAsyncImagePainter(
-                                            model = if (!friend.avatarUrl.isNullOrBlank())
-                                                friend.avatarUrl else R.drawable.default_avatar
+                                            model = friend.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                         )
                                         Image(
                                             painter = avatar,
@@ -407,6 +406,7 @@ fun UserScreen(
                     }
                 }
 
+                // Diálogo de edición de perfil (propio)
                 if (ui.isOwn) {
                     EditProfileDialog(
                         isOpen = showEditDialog,
@@ -414,14 +414,10 @@ fun UserScreen(
                         initialStatus = u.status,
                         onDismiss = { showEditDialog = false },
                         onSave = { newName, newStatus ->
-                            val b = bearer
-                            if (b == null) {
-                                Toast.makeText(context, "Necesitas iniciar sesión", Toast.LENGTH_SHORT).show()
-                                return@EditProfileDialog
-                            }
+                            val b = bearer ?: return@EditProfileDialog snack("Necesitas iniciar sesión")
                             viewModel.updateProfile(newName, newStatus, b)
                             showEditDialog = false
-                            Toast.makeText(context, "Perfil actualizado", Toast.LENGTH_SHORT).show()
+                            snack("Perfil actualizado")
                         }
                     )
                 }
@@ -430,8 +426,7 @@ fun UserScreen(
     }
 }
 
-
-/* ====== Mantén este composable como lo pegaste ====== */
+/* ====== Dialogo de edición ====== */
 @Composable
 private fun EditProfileDialog(
     isOpen: Boolean,
@@ -456,13 +451,9 @@ private fun EditProfileDialog(
                     return@TextButton
                 }
                 onSave(n, status.trim().ifBlank { null })
-            }) {
-                Text("Guardar")
-            }
+            }) { Text("Guardar") }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
-        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } },
         title = { Text("Editar perfil") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -489,16 +480,15 @@ private fun EditProfileDialog(
     )
 }
 
-/* ====== Helper de estrellas para puntuación 0..100 -> 0..5 ====== */
+/* ====== Helper estrellas (0..100 -> 0..5) ====== */
 @Composable
 private fun StarRowFrom100(
-    score100: Int?,           // 0..100
+    score100: Int?,
     maxStars: Int = 5,
     size: Dp = 16.dp
 ) {
     val s = (score100 ?: 0).coerceIn(0, 100)
-    // 0..100 -> 0..5 (redondeo al entero más cercano)
-    val stars = ((s + 10) / 20)  // 0..5
+    val stars = ((s + 10) / 20) // redondeo al entero más cercano
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         repeat(maxStars) { i ->

@@ -62,7 +62,7 @@ fun GameListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = game.year,
+                text = if (game.year == 0) "Sin fecha" else game.year.toString(),
                 style = MaterialTheme.typography.bodySmall,
                 color = TextoClaro
             )

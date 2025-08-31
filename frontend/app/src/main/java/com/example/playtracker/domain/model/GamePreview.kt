@@ -4,5 +4,5 @@ data class GamePreview(
     val id: Long,
     val title: String,
     val imageUrl: String,
-    val year: String,
+    val year: Int,
 )

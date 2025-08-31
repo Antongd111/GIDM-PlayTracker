@@ -45,7 +45,6 @@ import com.example.playtracker.ui.viewmodel.SocialViewModel
 fun SocialScreen(
     navController: NavHostController
 ) {
-    // VM sin factory (crea deps internas)
     val viewModel: SocialViewModel = viewModel(key = "SocialVM")
 
     val context = LocalContext.current
@@ -149,7 +148,6 @@ fun SocialScreen(
         }
     }
 }
-
 
 /* ===================== UI helpers ===================== */
 

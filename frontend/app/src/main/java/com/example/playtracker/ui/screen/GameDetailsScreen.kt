@@ -55,34 +55,33 @@ import kotlin.math.roundToInt
 fun GameDetailScreen(
     gameId: Long
 ) {
-    // ViewModel propio de la pantalla, sin factory (usa el constructor vacío)
+    // ViewModel creado en la pantalla (sin factory): conserva estado por gameId
     val viewModel: GameDetailViewModel = viewModel(
         key = "GameDetailVM_$gameId"
     )
 
-    // Para el modal de confirmación al eliminar juego
+    // UI local: confirmación al quitar juego de la biblioteca
     var showConfirmRemove by remember { mutableStateOf(false) }
     var pendingStatus by remember { mutableStateOf<String?>(null) }
 
+    // Preferencias y datos de sesión
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     var userId by remember { mutableStateOf<Int?>(null) }
-
-    // Token
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer: String? = token?.let { "Bearer $it" }
 
-    // Repo de reviews (solo si lo necesitas aquí para el envío directo desde la UI)
+    // Repositorio de reseñas (solo para el envío desde el modal)
     val reviewsRepo = remember { ReviewsRepositoryImpl(RetrofitInstance.reviewsApi) }
     val scope = rememberCoroutineScope()
 
-    // Carga del detalle + reseñas
+    // Efectos: carga de detalle y reseñas cuando cambia el juego o el token
     LaunchedEffect(gameId, bearer) {
         viewModel.loadGameDetail(gameId)
         if (bearer != null) viewModel.loadReviews(gameId, bearer)
     }
 
-    // userId -> userGame
+    // Efectos: obtener userId y sincronizar su UserGame
     LaunchedEffect(Unit) {
         userId = prefs.userIdFlow.firstOrNull()
         userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
@@ -97,16 +96,19 @@ fun GameDetailScreen(
     val error = viewModel.error
 
     when {
+        // Estado de carga inicial
         isLoading -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
+        // Error recuperando detalle
         error != null -> {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Error: $error")
             }
         }
+        // Contenido principal
         gameDetail != null -> {
             Column(
                 modifier = Modifier
@@ -115,7 +117,7 @@ fun GameDetailScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(WindowInsets.systemBars.asPaddingValues())
             ) {
-                // Imagen principal
+                // Cabecera con imagen del juego y texto básico
                 Image(
                     painter = rememberAsyncImagePainter(gameDetail.imageUrl),
                     contentDescription = gameDetail.title,
@@ -142,7 +144,7 @@ fun GameDetailScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botones de estado
+                // Selector de estado del juego para el usuario
                 val statusOptions = listOf("No seguido", "Por jugar", "Jugando", "Completado")
                 val currentStatus = userGame?.status ?: "No seguido"
                 val canReview = remember(currentStatus) {
@@ -159,18 +161,13 @@ fun GameDetailScreen(
                         val isSelected = currentStatus == status
                         Button(
                             onClick = {
-                                // Si quiere pasar a "No seguido" desde otro estado -> confirmar
+                                // Quitar de la biblioteca requiere confirmación
                                 if (status == "No seguido" && currentStatus != "No seguido") {
                                     pendingStatus = status
                                     showConfirmRemove = true
                                 } else {
-                                    // Cualquier otro cambio directo
                                     userId?.let { uid ->
-                                        viewModel.updateGameStatus(
-                                            uid,
-                                            gameId,
-                                            status
-                                        )
+                                        viewModel.updateGameStatus(uid, gameId, status)
                                     }
                                 }
                             },
@@ -192,15 +189,15 @@ fun GameDetailScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Modal para confirmación al eliminar juego
+                // Diálogo de confirmación al eliminar juego del usuario
                 if (showConfirmRemove) {
                     AlertDialog(
                         onDismissRequest = {
                             showConfirmRemove = false
                             pendingStatus = null
                         },
-                        modifier = Modifier.fillMaxWidth(0.96f), // más ancho
-                        properties = DialogProperties(usePlatformDefaultWidth = false), // permite el ancho custom
+                        modifier = Modifier.fillMaxWidth(0.96f),
+                        properties = DialogProperties(usePlatformDefaultWidth = false),
                         shape = RoundedCornerShape(20.dp),
                         title = { Text("Eliminar de tu biblioteca") },
                         text = {
@@ -213,7 +210,6 @@ fun GameDetailScreen(
                                 }
                             )
                         },
-                        // Puedes dejar 'dismissButton' como TextButton o estilizarlo también
                         dismissButton = {
                             TextButton(
                                 onClick = {
@@ -223,7 +219,6 @@ fun GameDetailScreen(
                             ) { Text("Cancelar") }
                         },
                         confirmButton = {
-                            // Botón rojo, redondeado, estilo filled
                             Button(
                                 onClick = {
                                     val uid = userId
@@ -252,7 +247,7 @@ fun GameDetailScreen(
                     )
                 }
 
-                // Descripción con "ver más"
+                // Descripción con expandir/contraer
                 var expanded by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Text(
@@ -297,7 +292,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Galería
+                // Galería de capturas
                 Text(
                     text = "Galería",
                     style = MaterialTheme.typography.titleMedium,
@@ -329,7 +324,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Opiniones (carrusel)
+                // Carrusel de opiniones públicas
                 ReviewsSection(
                     title = "Opiniones",
                     reviews = viewModel.reviews,
@@ -337,7 +332,7 @@ fun GameDetailScreen(
                     error = viewModel.reviewsError
                 )
 
-                // Tu reseña (tarjeta bonita coherente con 5 estrellas)
+                // Tarjeta compacta con tu reseña (si existe)
                 if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) {
                     YourReviewCard(
                         score0to100 = userGame?.score ?: 0,
@@ -346,7 +341,7 @@ fun GameDetailScreen(
                     Spacer(Modifier.height(12.dp))
                 }
 
-                // Botón escribir/editar reseña
+                // CTA para crear/editar reseña (valida sesión y estado)
                 var showReviewSheet by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
@@ -380,9 +375,9 @@ fun GameDetailScreen(
 
                 Spacer(Modifier.height(24.dp))
 
+                // Hoja inferior para escribir/editar reseña
                 if (showReviewSheet) {
-                    // Slider 0..100
-                    var tempScore100 by rememberSaveable { mutableStateOf(userGame?.score ?: 0) } // 0..100
+                    var tempScore100 by rememberSaveable { mutableStateOf(userGame?.score ?: 0) }
                     var tempNotes by rememberSaveable { mutableStateOf(userGame?.notes ?: "") }
                     var isSaving by remember { mutableStateOf(false) }
                     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -400,7 +395,7 @@ fun GameDetailScreen(
                         ) {
                             Text("Tu reseña", style = MaterialTheme.typography.titleLarge)
 
-                            // --- Slider + preview ---
+                            // Control de puntuación (0..100) + vista previa 0..10 y estrellas
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -417,7 +412,6 @@ fun GameDetailScreen(
                                 steps = 99
                             )
 
-                            // Preview 5⭐ con medias
                             FiveStarRating(
                                 score0to10 = tempScore100 / 10f,
                                 starSize = 22.dp
@@ -453,17 +447,15 @@ fun GameDetailScreen(
                                         scope.launch {
                                             try {
                                                 val b = bearer ?: error("Debes iniciar sesión")
-
-                                                // Envío en 0..10 ENTERO para encajar con tu repo actual:
                                                 val score0to10Float = tempScore100 / 10f
                                                 reviewsRepo.upsert(
                                                     gameId = gameId,
-                                                    score0to10 = score0to10Float,   // <- Float
+                                                    score0to10 = score0to10Float,
                                                     notes = tempNotes,
                                                     bearer = b
                                                 ).getOrThrow()
 
-                                                // REFRESCO DE INFORMACION
+                                                // Refresca reseñas y UserGame tras guardar
                                                 viewModel.loadReviews(gameId, b)
                                                 userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
 
@@ -499,7 +491,6 @@ fun GameDetailScreen(
     }
 }
 
-/** Tarjeta compacta para "Tu reseña" usando 5 estrellas con medias. */
 @Composable
 private fun YourReviewCard(
     score0to100: Int,
@@ -551,10 +542,8 @@ fun FiveStarRating(
     starSize: Dp = 20.dp,
     tint: Color = MaterialTheme.colorScheme.primary
 ) {
-    // Paso 1: convertir 0..10 a 0..5
     val raw5 = (score0to10 / 2f).coerceIn(0f, 5f)
-    // Paso 2: cuantizar a saltos de 0.5 (redondeo estándar)
-    val q5 = (raw5 * 2f).roundToInt() / 2f  // 2.76 -> 3.0, 2.24 -> 2.0, 2.5 -> 2.5
+    val q5 = (raw5 * 2f).roundToInt() / 2f
 
     Row(modifier = modifier) {
         repeat(5) { i ->
@@ -587,7 +576,7 @@ fun ReviewsSection(
     isLoading: Boolean,
     error: String?
 ) {
-    // Filtra: solo reseñas con texto o con puntuación > 0
+    // Solo mostrar reseñas con texto o con puntuación
     val displayReviews = remember(reviews) {
         reviews.filter { review ->
             val hasText = !review.notes.isNullOrBlank()
@@ -643,13 +632,14 @@ private fun ReviewsCarousel(reviews: List<Review>) {
     val size = reviews.size
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { size })
 
-    // Recoloca la página si cambia el tamaño
+    // Arregla la página actual si cambia el tamaño de la lista
     LaunchedEffect(size) {
         if (pagerState.currentPage >= size) {
             pagerState.scrollToPage(0)
         }
     }
 
+    // Auto-avance suave del carrusel
     LaunchedEffect(size) {
         if (size == 0) return@LaunchedEffect
         while (true) {

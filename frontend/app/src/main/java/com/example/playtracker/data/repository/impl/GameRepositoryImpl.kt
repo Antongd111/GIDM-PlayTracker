@@ -16,7 +16,7 @@ class GameRepositoryImpl(
                 id = dto.id,
                 title = dto.title,
                 imageUrl = dto.imageUrl,
-                year = dto.year ?: "0000",
+                year = dto.year ?: 0,
             )
         }
 
@@ -26,7 +26,7 @@ class GameRepositoryImpl(
                 id = dto.id,
                 title = dto.title,
                 imageUrl = dto.imageUrl,
-                year = dto.year ?: "0000",
+                year = dto.year ?: 0,
             )
         }
 }

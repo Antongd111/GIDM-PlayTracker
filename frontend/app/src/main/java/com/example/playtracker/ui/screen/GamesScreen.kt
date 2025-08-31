@@ -17,9 +17,9 @@ import androidx.navigation.NavController
 import com.example.playtracker.data.local.datastore.UserPreferences
 import com.example.playtracker.ui.components.GameCard
 import com.example.playtracker.ui.components.GameListItem
-import com.example.playtracker.ui.components.GamePreviewCard
 import com.example.playtracker.ui.components.SearchBar
 import com.example.playtracker.ui.viewmodel.GamesViewModel
+
 @Composable
 fun GamesScreen(
     navController: NavController
@@ -85,27 +85,7 @@ fun GamesScreen(
             }
 
             if (!isSearching) {
-                if (recommendations.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = "Recomendados para ti",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                        )
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(recommendations, key = { it.id }) { rec ->
-                                GamePreviewCard(
-                                    game = rec,
-                                    onClick = { id -> navController.navigate("gameDetail/$id") }
-                                )
-                            }
-                        }
-                    }
-                }
-
+                // Pantalla principal (populares, recomendaciones...)
                 if (popular.isNotEmpty()) {
                     item {
                         Text(
@@ -123,7 +103,32 @@ fun GamesScreen(
                         }
                     }
                 }
+
+                if (recommendations.isNotEmpty()) {
+                    item {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 16.dp),
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        Text(
+                            text = "Recomendados para ti",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                        )
+                    }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(recommendations, key = { it.id }) { rec ->
+                                GameCard(game = rec, navController = navController)
+                            }
+                        }
+                    }
+                }
             } else {
+                // Resultados de la búsqueda
                 if (results.isEmpty() && !loading) {
                     item {
                         Box(

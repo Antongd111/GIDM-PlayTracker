@@ -30,7 +30,7 @@ class GamePreview(BaseModel):
     id: int
     title: str
     imageUrl:str
-    releaseDate: str
+    year: int
 
 class Recommendations(BaseModel):
     user_id: int

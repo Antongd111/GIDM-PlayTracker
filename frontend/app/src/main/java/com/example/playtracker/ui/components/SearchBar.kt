@@ -13,7 +13,7 @@ import androidx.compose.foundation.text.KeyboardActions
 fun SearchBar(
     value: String,
     onValueChange: (String) -> Unit,
-    onSearch: () -> Unit // 👈 nuevo parámetro
+    onSearch: () -> Unit
 ) {
     OutlinedTextField(
         value = value,
