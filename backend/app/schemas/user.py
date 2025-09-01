@@ -22,3 +22,6 @@ class UserOut(UserBase):
 
     class Config:
         orm_mode = True
+
+class FavoriteUpdate(BaseModel):
+    favorite_rawg_game_id: Optional[int] = None

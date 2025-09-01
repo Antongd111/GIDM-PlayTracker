@@ -1,5 +1,7 @@
 package com.example.playtracker.data.repository.impl
 
+import android.util.Log
+import com.example.playtracker.data.remote.dto.user.FavouriteRequestDto
 import com.example.playtracker.data.remote.dto.user.UpdateUserDto
 import com.example.playtracker.data.remote.mapper.*
 import com.example.playtracker.data.remote.service.UserApi
@@ -43,5 +45,9 @@ class UserRepositoryImpl(
             imageUrl = dto.imageUrl,
             year = dto.year ?: 0,
         )
+    }
+
+    override suspend fun setFavorite(userId: Int, gameRawgId: Long?, bearer: String): User {
+        return users.setFavoriteById(userId, FavouriteRequestDto(gameRawgId), bearer).toDomain()
     }
 }

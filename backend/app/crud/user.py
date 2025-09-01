@@ -7,6 +7,7 @@ from app.models.user import User
 from app.models.user_game import UserGame
 from app.schemas.user import UserCreate, UserUpdate
 from passlib.context import CryptContext
+from typing import Optional
 
 from app.models.user_game import UserGame
 from app.models.friendship import Friendship, FriendshipStatus
@@ -103,3 +104,14 @@ async def get_friends_games(
 
     rows = await db.execute(stmt)
     return [GamePreview(**m) for m in rows.mappings().all()]
+
+async def set_favorite(db: AsyncSession, user_id: int, favorite_rawg_game_id: Optional[int]):
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    user.favorite_rawg_game_id = favorite_rawg_game_id
+    await db.commit()
+    await db.refresh(user)
+    return user

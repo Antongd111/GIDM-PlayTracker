@@ -1,6 +1,5 @@
 package com.example.playtracker.ui.viewmodel
 
-import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -10,8 +9,10 @@ import com.example.playtracker.data.remote.dto.game.GameDetailDto
 import com.example.playtracker.data.remote.service.RetrofitInstance
 import com.example.playtracker.data.repository.ReviewsRepository
 import com.example.playtracker.data.repository.UserGameRepository
+import com.example.playtracker.data.repository.UserRepository
 import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
 import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
+import com.example.playtracker.data.repository.impl.UserRepositoryImpl
 import com.example.playtracker.domain.model.GameReviews
 import com.example.playtracker.domain.model.Review
 import com.example.playtracker.domain.model.UserGame
@@ -19,8 +20,9 @@ import kotlinx.coroutines.launch
 
 class GameDetailViewModel : ViewModel() {
 
-    // --- Dependencias creadas aquí (simplificación sin DI) ---
+    // --- Dependencias (sin DI) ---
     private val gameApi = RetrofitInstance.gameApi
+    private val userApi = RetrofitInstance.userApi
     private val userGameRepo: UserGameRepository =
         UserGameRepositoryImpl(
             userGameApi = RetrofitInstance.userGameApi,
@@ -28,6 +30,9 @@ class GameDetailViewModel : ViewModel() {
         )
     private val reviewsRepo: ReviewsRepository =
         ReviewsRepositoryImpl(RetrofitInstance.reviewsApi)
+
+    private val userRepo: UserRepository =
+        UserRepositoryImpl(RetrofitInstance.userApi, RetrofitInstance.friendsApi)
 
     // --- Estado ---
     var gameDetail by mutableStateOf<GameDetailDto?>(null)
@@ -42,15 +47,7 @@ class GameDetailViewModel : ViewModel() {
     var error by mutableStateOf<String?>(null)
         private set
 
-    // --- estado para reseñas ---
-    var isPostingReview by mutableStateOf(false)
-        private set
-    var postReviewError by mutableStateOf<String?>(null)
-        private set
-    var myReview by mutableStateOf<Review?>(null)
-        private set
-
-    // --- listado de reseñas públicas del juego ---
+    // --- Reseñas ---
     var gameReviews by mutableStateOf<GameReviews?>(null)
         private set
     var reviews by mutableStateOf<List<Review>>(emptyList())
@@ -58,6 +55,14 @@ class GameDetailViewModel : ViewModel() {
     var isLoadingReviews by mutableStateOf(false)
         private set
     var reviewsError by mutableStateOf<String?>(null)
+        private set
+
+    // --- Favorito (estado local; no usamos el User devuelto por setFavorite) ---
+    var favoriteGameId by mutableStateOf<Long?>(null)
+        private set
+    var isTogglingFavorite by mutableStateOf(false)
+        private set
+    var favoriteError by mutableStateOf<String?>(null)
         private set
 
     // --- Lógica ---
@@ -82,21 +87,16 @@ class GameDetailViewModel : ViewModel() {
             isLoading = true
             error = null
             runCatching { gameApi.getGameDetails(gameId) }
-                .onSuccess { dto ->
-                    gameDetail = dto
-                    isLoading = false
-                }
-                .onFailure { e ->
-                    error = e.message ?: "Error al cargar detalles"
-                    isLoading = false
-                }
+                .onSuccess { dto -> gameDetail = dto }
+                .onFailure { e -> error = e.message ?: "Error al cargar detalles" }
+            isLoading = false
         }
     }
 
     fun getUserGame(userId: Int, gameId: Long) {
         viewModelScope.launch {
             runCatching { userGameRepo.getUserGame(userId, gameId) }
-                .onSuccess { userGame = it }
+                .onSuccess { ug -> userGame = ug }
         }
     }
 
@@ -106,22 +106,67 @@ class GameDetailViewModel : ViewModel() {
                 runCatching { userGameRepo.deleteUserGame(userId, gameRawgId) }
                     .onSuccess {
                         userGame = null
-                        myReview = null
                         error = null
                     }
-                    .onFailure {
-                        error = "Error al eliminar el juego de tu biblioteca"
-                    }
+                    .onFailure { error = "Error al eliminar el juego de tu biblioteca" }
             } else {
                 runCatching { userGameRepo.upsertUserGame(userId, gameRawgId, newStatus) }
-                    .onSuccess {
-                        userGame = it
-                        error = null
-                    }
-                    .onFailure {
-                        error = "Error al actualizar estado del juego"
-                    }
+                    .onSuccess { ug -> userGame = ug }
+                    .onFailure { error = "Error al actualizar estado del juego" }
             }
+        }
+    }
+
+    // --- Favorito ---
+
+    /** Carga el favorito actual del usuario para mostrar la estrella resaltada al entrar. */
+    fun loadMyFavorite(bearer: String) {
+        viewModelScope.launch {
+            runCatching { userRepo.me(bearer) }
+                .onSuccess { me -> favoriteGameId = me.favoriteRawgId }
+                .onFailure { /* silencioso */ }
+        }
+    }
+
+    /** Marca este juego como favorito. No usamos el User que devuelve; solo actualizamos estado local. */
+    fun setFavorite(userId: Int, bearer: String, gameRawgId: Long) {
+        if (isTogglingFavorite) return
+        viewModelScope.launch {
+            isTogglingFavorite = true
+            favoriteError = null
+            runCatching {
+                userRepo.setFavorite(
+                    userId = userId,
+                    gameRawgId,
+                    bearer = bearer
+                )
+            }.onSuccess {
+                favoriteGameId = gameRawgId
+            }.onFailure { e ->
+                favoriteError = e.message ?: "No se pudo actualizar el favorito"
+            }
+            isTogglingFavorite = false
+        }
+    }
+
+    /** Quita el favorito (por si lo quieres usar como toggle en otro momento). */
+    fun clearFavorite(userId: Int, bearer: String) {
+        if (isTogglingFavorite) return
+        viewModelScope.launch {
+            isTogglingFavorite = true
+            favoriteError = null
+            runCatching {
+                userRepo.setFavorite(
+                    userId = userId,
+                    null,
+                    bearer = bearer
+                )
+            }.onSuccess {
+                favoriteGameId = null
+            }.onFailure { e ->
+                favoriteError = e.message ?: "No se pudo limpiar el favorito"
+            }
+            isTogglingFavorite = false
         }
     }
 }

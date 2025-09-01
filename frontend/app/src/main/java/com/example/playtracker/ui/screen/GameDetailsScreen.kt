@@ -1,10 +1,15 @@
 package com.example.playtracker.ui.screen
 
+import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,67 +29,56 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.rememberAsyncImagePainter
-import com.example.playtracker.data.local.datastore.UserPreferences
-import com.example.playtracker.data.remote.service.RetrofitInstance
-import com.example.playtracker.data.repository.impl.UserGameRepositoryImpl
-import com.example.playtracker.ui.viewmodel.GameDetailViewModel
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.launch
-import android.widget.Toast
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.R
+import com.example.playtracker.data.local.datastore.UserPreferences
+import com.example.playtracker.data.remote.service.RetrofitInstance
+import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
 import com.example.playtracker.domain.model.Review
+import com.example.playtracker.ui.viewmodel.GameDetailViewModel
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @Composable
 fun GameDetailScreen(
     gameId: Long
 ) {
-    // ViewModel creado en la pantalla (sin factory): conserva estado por gameId
-    val viewModel: GameDetailViewModel = viewModel(
+    val viewModel: GameDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         key = "GameDetailVM_$gameId"
     )
 
-    // UI local: confirmación al quitar juego de la biblioteca
     var showConfirmRemove by remember { mutableStateOf(false) }
     var pendingStatus by remember { mutableStateOf<String?>(null) }
 
-    // Preferencias y datos de sesión
     val context = LocalContext.current
     val prefs = remember { UserPreferences(context) }
     var userId by remember { mutableStateOf<Int?>(null) }
     val token by prefs.tokenFlow.collectAsState(initial = null)
     val bearer: String? = token?.let { "Bearer $it" }
 
-    // Repositorio de reseñas (solo para el envío desde el modal)
     val reviewsRepo = remember { ReviewsRepositoryImpl(RetrofitInstance.reviewsApi) }
     val scope = rememberCoroutineScope()
 
-    // Efectos: carga de detalle y reseñas cuando cambia el juego o el token
+    // Cargas iniciales
     LaunchedEffect(gameId, bearer) {
         viewModel.loadGameDetail(gameId)
-        if (bearer != null) viewModel.loadReviews(gameId, bearer)
+        if (bearer != null) {
+            viewModel.loadReviews(gameId, bearer)
+            viewModel.loadMyFavorite(bearer) // <-- para resaltar la estrella al entrar
+        }
     }
-
-    // Efectos: obtener userId y sincronizar su UserGame
     LaunchedEffect(Unit) {
         userId = prefs.userIdFlow.firstOrNull()
         userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
@@ -93,25 +87,29 @@ fun GameDetailScreen(
         userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
     }
 
+    // Feedback al marcar favorito
+    LaunchedEffect(viewModel.favoriteGameId) {
+        if (bearer != null && viewModel.favoriteGameId == gameId) {
+            Toast.makeText(context, "Marcado como favorito", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val gameDetail = viewModel.gameDetail
     val userGame = viewModel.userGame
     val isLoading = viewModel.isLoading
     val error = viewModel.error
 
     when {
-        // Estado de carga inicial
         isLoading -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         }
-        // Error recuperando detalle
         error != null -> {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text("Error: $error")
             }
         }
-        // Contenido principal
         gameDetail != null -> {
             Column(
                 modifier = Modifier
@@ -120,16 +118,66 @@ fun GameDetailScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(WindowInsets.systemBars.asPaddingValues())
             ) {
-                // Cabecera con imagen del juego y texto básico
-                Image(
-                    painter = rememberAsyncImagePainter(gameDetail.imageUrl),
-                    contentDescription = gameDetail.title,
-                    contentScale = ContentScale.Crop,
+                // -------- Cabecera con imagen + botón favorito --------
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(gameDetail.imageUrl),
+                        contentDescription = gameDetail.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+
+                    val currentIsFavorite = remember(viewModel.favoriteGameId, gameId) {
+                        viewModel.favoriteGameId == gameId
+                    }
+                    val canToggleFavorite = bearer != null && userId != null
+                    val currentStatus = userGame?.status ?: "No seguido"
+                    val canFavorite = currentStatus.equals("Jugando", true) || currentStatus.equals("Completado", true)
+
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp),
+                        shape = CircleShape,
+                        tonalElevation = 2.dp,
+                        shadowElevation = 4.dp,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (!canToggleFavorite) {
+                                    Toast.makeText(context, "Inicia sesión para marcar favorito", Toast.LENGTH_SHORT).show()
+                                } else if (!canFavorite) {
+                                    Toast.makeText(context, "Solo puedes marcar favorito si estás Jugando o Completado", Toast.LENGTH_LONG).show()
+                                } else {
+                                    viewModel.setFavorite(
+                                        userId!!,
+                                        bearer!!,
+                                        gameId
+                                    )
+                                }
+                            },
+                            enabled = canToggleFavorite && !viewModel.isTogglingFavorite
+                        ) {
+                            val icon = if (currentIsFavorite) Icons.Filled.Star else Icons.Outlined.Star
+                            val golden = Color(0xFFFFD700) // amarillo oro
+                            val tint = if (currentIsFavorite) golden else MaterialTheme.colorScheme.onSurfaceVariant
+
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = if (currentIsFavorite) "Favorito actual" else "Marcar como favorito",
+                                tint = tint,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
 
                 Text(
                     text = gameDetail.title,
@@ -145,9 +193,9 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Selector de estado del juego para el usuario
+                // -------- Selector de estado del juego --------
                 val statusOptions = listOf("No seguido", "Por jugar", "Jugando", "Completado")
                 val currentStatus = userGame?.status ?: "No seguido"
                 val canReview = remember(currentStatus) {
@@ -164,7 +212,6 @@ fun GameDetailScreen(
                         val isSelected = currentStatus == status
                         Button(
                             onClick = {
-                                // Quitar de la biblioteca requiere confirmación
                                 if (status == "No seguido" && currentStatus != "No seguido") {
                                     pendingStatus = status
                                     showConfirmRemove = true
@@ -190,9 +237,9 @@ fun GameDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Diálogo de confirmación al eliminar juego del usuario
+                // -------- Diálogo eliminación biblioteca --------
                 if (showConfirmRemove) {
                     AlertDialog(
                         onDismissRequest = {
@@ -243,14 +290,12 @@ fun GameDetailScreen(
                                     contentColor = MaterialTheme.colorScheme.onError
                                 ),
                                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
-                            ) {
-                                Text("Sí, eliminar")
-                            }
+                            ) { Text("Sí, eliminar") }
                         }
                     )
                 }
 
-                // Descripción con expandir/contraer
+                // -------- Descripción --------
                 var expanded by remember { mutableStateOf(false) }
                 Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Text(
@@ -287,7 +332,7 @@ fun GameDetailScreen(
                     ) { Text(if (expanded) "Ver menos" else "Ver más", textDecoration = TextDecoration.Underline) }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 16.dp, horizontal = 16.dp),
@@ -295,7 +340,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Galería de capturas
+                // -------- Galería --------
                 Text(
                     text = "Galería",
                     style = MaterialTheme.typography.titleMedium,
@@ -319,7 +364,7 @@ fun GameDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 16.dp, horizontal = 16.dp),
@@ -327,7 +372,7 @@ fun GameDetailScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
 
-                // Carrusel de opiniones públicas
+                // -------- Opiniones --------
                 ReviewsSection(
                     title = "Opiniones",
                     reviews = viewModel.reviews,
@@ -335,7 +380,7 @@ fun GameDetailScreen(
                     error = viewModel.reviewsError
                 )
 
-                // Tarjeta compacta con tu reseña (si existe)
+                // -------- Tu reseña compacta --------
                 if ((userGame?.score ?: 0) > 0 || !userGame?.notes.isNullOrBlank()) {
                     YourReviewCard(
                         score0to100 = userGame?.score ?: 0,
@@ -344,7 +389,7 @@ fun GameDetailScreen(
                     Spacer(Modifier.height(12.dp))
                 }
 
-                // CTA para crear/editar reseña (valida sesión y estado)
+                // -------- CTA reseña --------
                 var showReviewSheet by remember { mutableStateOf(false) }
                 Button(
                     onClick = {
@@ -378,7 +423,7 @@ fun GameDetailScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                // Hoja inferior para escribir/editar reseña
+                // -------- Hoja de reseña --------
                 if (showReviewSheet) {
                     var tempScore100 by rememberSaveable { mutableStateOf(userGame?.score ?: 0) }
                     var tempNotes by rememberSaveable { mutableStateOf(userGame?.notes ?: "") }
@@ -398,7 +443,6 @@ fun GameDetailScreen(
                         ) {
                             Text("Tu reseña", style = MaterialTheme.typography.titleLarge)
 
-                            // Control de puntuación (0..100) + vista previa 0..10 y estrellas
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -458,7 +502,6 @@ fun GameDetailScreen(
                                                     bearer = b
                                                 ).getOrThrow()
 
-                                                // Refresca reseñas y UserGame tras guardar
                                                 viewModel.loadReviews(gameId, b)
                                                 userId?.let { uid -> viewModel.getUserGame(uid, gameId) }
 
@@ -579,7 +622,6 @@ fun ReviewsSection(
     isLoading: Boolean,
     error: String?
 ) {
-    // Solo mostrar reseñas con texto o con puntuación
     val displayReviews = remember(reviews) {
         reviews.filter { review ->
             val hasText = !review.notes.isNullOrBlank()
@@ -701,7 +743,6 @@ private fun ReviewsCarousel(reviews: List<Review>) {
         Spacer(Modifier.height(8.dp))
     }
 
-    // Popup con la reseña completa
     openReview?.let { r ->
         ReviewDialog(
             review = r,
@@ -733,7 +774,6 @@ private fun ReviewCard(
                 .background(Brush.verticalGradient(listOf(surface, overlay, surface)))
                 .padding(16.dp)
         ) {
-            // Cabecera
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -773,7 +813,6 @@ private fun ReviewCard(
                 color = MaterialTheme.colorScheme.outlineVariant
             )
 
-            // Texto con elipsis para encajar en altura fija
             Text(
                 text = review.notes?.ifBlank { "Sin comentario." } ?: "Sin comentario.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -811,7 +850,6 @@ private fun ReviewDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Cabecera (igual que en la card)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -849,7 +887,6 @@ private fun ReviewDialog(
                     color = MaterialTheme.colorScheme.outlineVariant
                 )
 
-                // Texto completo
                 Text(
                     text = review.notes?.ifBlank { "Sin comentario." } ?: "Sin comentario.",
                     style = MaterialTheme.typography.bodyLarge,

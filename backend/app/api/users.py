@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.core.database import SessionLocal
-from app.schemas.user import UserOut, UserCreate, UserUpdate
+from app.schemas.user import UserOut, UserCreate, UserUpdate, FavoriteUpdate
 from app.crud import user as crud_user
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -58,3 +58,23 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)):
 async def search_users(query: str, db: AsyncSession = Depends(get_db)):
     users = await crud_user.search_users(db, query)
     return users
+
+@router.patch("/{user_id}/favorite", response_model=UserOut)
+async def set_favorite_for_user(
+    user_id: int,
+    body: FavoriteUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    # Autorización básica: solo el propio usuario (ajusta si tienes admin)
+    if current_user.id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+
+    updated = await crud_user.set_favorite(
+        db=db,
+        user_id=user_id,
+        favorite_rawg_game_id=body.favorite_rawg_game_id,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return updated
