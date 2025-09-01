@@ -28,44 +28,72 @@ fun GameListItem(
     game: GamePreview,
     navController: NavController
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    val yearText = if (game.year == 0) "Sin fecha" else game.year.toString()
+
+    Card(
+        onClick = { navController.navigate("gameDetail/${game.id}") },
+        shape = RoundedCornerShape(12.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .background(color = MaterialTheme.colorScheme.surface)
-            .clickable { navController.navigate("gameDetail/${game.id}") }
+            .height(96.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        // Imagen
-        Image(
-            painter = rememberAsyncImagePainter(game.imageUrl),
-            contentDescription = game.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxHeight()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(4.dp))
-        )
+        Box(Modifier.fillMaxSize()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = 12.dp)
+            ) {
+                // Imagen a la izquierda con esquinas izquierdas redondeadas
+                Image(
+                    painter = rememberAsyncImagePainter(game.imageUrl),
+                    contentDescription = game.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
+                )
 
-        Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(12.dp))
 
-        // Título y año
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
-            Text(
-                text = game.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextoClaro,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = if (game.year == 0) "Sin fecha" else game.year.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = TextoClaro
-            )
+                // Título
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = game.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Pill de año ARRIBA-DERECHA de la TARJETA
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(10.dp),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = yearText,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }

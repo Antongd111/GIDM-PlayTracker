@@ -15,7 +15,7 @@ class GameRepositoryImpl(
             GamePreview(
                 id = dto.id,
                 title = dto.title,
-                imageUrl = dto.imageUrl,
+                imageUrl = dto.imageUrl?.takeIf { it.isNotBlank() } ?: "",
                 year = dto.year ?: 0,
             )
         }
@@ -25,7 +25,7 @@ class GameRepositoryImpl(
             GamePreview(
                 id = dto.id,
                 title = dto.title,
-                imageUrl = dto.imageUrl,
+                imageUrl = dto.imageUrl?.takeIf { it.isNotBlank() } ?: "",
                 year = dto.year ?: 0,
             )
         }

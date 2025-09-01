@@ -1,5 +1,6 @@
 package com.example.playtracker.ui.screen
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +28,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.rememberAsyncImagePainter
 import com.example.playtracker.R
 import com.example.playtracker.data.local.datastore.UserPreferences
 import com.example.playtracker.data.remote.service.RetrofitInstance
@@ -247,6 +249,10 @@ private fun IncomingRequestsDialog(
                             val uid = req.otherUser.id
                             val isBusy = working.contains(uid)
 
+                            val avatarPainter = rememberAsyncImagePainter(
+                                model = req.otherUser.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                            )
+
                             ElevatedCard(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.elevatedCardColors(
@@ -260,7 +266,7 @@ private fun IncomingRequestsDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Image(
-                                        painter = painterResource(R.drawable.default_avatar),
+                                        painter = avatarPainter,
                                         contentDescription = "Avatar",
                                         modifier = Modifier
                                             .size(52.dp)

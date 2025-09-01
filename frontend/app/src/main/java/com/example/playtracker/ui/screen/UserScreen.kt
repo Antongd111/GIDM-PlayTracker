@@ -209,24 +209,42 @@ fun UserScreen(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     ),
                                 ) {
-                                    Row(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                    ) {
                                         val img = fav.imageUrl
                                         Image(
                                             painter = rememberAsyncImagePainter(
                                                 model = img?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                             ),
                                             contentDescription = null,
+                                            contentScale = ContentScale.Crop,
                                             modifier = Modifier
-                                                .size(100.dp)
-                                                .clip(RoundedCornerShape(8.dp)),
-                                            contentScale = ContentScale.Crop
+                                                .fillMaxHeight()
+                                                .aspectRatio(1f) // cuadrada; quítalo si prefieres un rectángulo
+                                                .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
                                         )
-                                        Spacer(Modifier.width(12.dp))
-                                        Column(Modifier.weight(1f)) {
-                                            Text(fav.gameTitle ?: "Juego", style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                                            Spacer(Modifier.height(4.dp))
-                                            StarRowFrom100(score100 = fav.score, size = 16.dp)
-                                            Spacer(Modifier.height(6.dp))
+
+                                        // Contenido a la derecha
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                            verticalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Column {
+                                                Text(
+                                                    fav.gameTitle ?: "Juego",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(Modifier.height(6.dp))
+                                                StarRowFrom100(score100 = fav.score, size = 16.dp)
+                                            }
                                             Text(
                                                 "Ver detalles",
                                                 style = MaterialTheme.typography.labelSmall,
@@ -315,35 +333,42 @@ fun UserScreen(
                                         ),
                                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                                     ) {
-                                        Column(
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            modifier = Modifier.padding(8.dp)
-                                        ) {
+                                        Column(Modifier.fillMaxWidth()) {
                                             val img = ug.imageUrl
                                             Image(
                                                 painter = rememberAsyncImagePainter(
                                                     model = img?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
                                                 ),
                                                 contentDescription = null,
+                                                contentScale = ContentScale.Crop,
                                                 modifier = Modifier
-                                                    .height(120.dp)
                                                     .fillMaxWidth()
-                                                    .clip(RoundedCornerShape(8.dp)),
-                                                contentScale = ContentScale.Crop
+                                                    .height(120.dp)
+                                                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                                             )
+
                                             Spacer(Modifier.height(8.dp))
+
                                             Text(
                                                 ug.gameTitle ?: "Juego",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 8.dp),
                                                 maxLines = 1,
                                                 textAlign = TextAlign.Center
                                             )
+
                                             Spacer(Modifier.height(4.dp))
+
                                             Row(
                                                 horizontalArrangement = Arrangement.Center,
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) { StarRowFrom100(score100 = ug.score, size = 14.dp) }
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(bottom = 8.dp)
+                                            ) {
+                                                StarRowFrom100(score100 = ug.score, size = 14.dp)
+                                            }
                                         }
                                     }
                                 }

@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import com.example.playtracker.data.repository.impl.ReviewsRepositoryImpl
@@ -47,7 +48,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.playtracker.R
 import com.example.playtracker.domain.model.Review
 import kotlin.math.roundToInt
 
@@ -595,6 +598,8 @@ fun ReviewsSection(
                 .align(Alignment.CenterHorizontally)
         )
 
+        Spacer(modifier = Modifier.height(10.dp))
+
         when {
             isLoading -> {
                 Box(
@@ -629,17 +634,15 @@ fun ReviewsSection(
 private fun ReviewsCarousel(reviews: List<Review>) {
     if (reviews.isEmpty()) return
 
+    val CARD_HEIGHT = 200.dp
+    var openReview by remember { mutableStateOf<Review?>(null) }
+
     val size = reviews.size
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { size })
 
-    // Arregla la página actual si cambia el tamaño de la lista
     LaunchedEffect(size) {
-        if (pagerState.currentPage >= size) {
-            pagerState.scrollToPage(0)
-        }
+        if (pagerState.currentPage >= size) pagerState.scrollToPage(0)
     }
-
-    // Auto-avance suave del carrusel
     LaunchedEffect(size) {
         if (size == 0) return@LaunchedEffect
         while (true) {
@@ -651,108 +654,213 @@ private fun ReviewsCarousel(reviews: List<Review>) {
         }
     }
 
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            pageSpacing = 12.dp,
-            modifier = Modifier.matchParentSize()
-        ) { page ->
-            reviews.getOrNull(page)?.let { review ->
-                ReviewCard(
-                    review = review,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .fillMaxWidth()
-                        .wrapContentHeight()
+    Column {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(CARD_HEIGHT)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                pageSpacing = 12.dp,
+                modifier = Modifier.matchParentSize()
+            ) { page ->
+                reviews.getOrNull(page)?.let { review ->
+                    ReviewCard(
+                        review = review,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .fillMaxWidth()
+                            .height(CARD_HEIGHT),
+                        onClick = { openReview = review }
+                    )
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(size) { i ->
+                val selected = i == (pagerState.currentPage % size)
+                Box(
+                    Modifier
+                        .padding(horizontal = 3.dp)
+                        .size(if (selected) 9.dp else 7.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant
+                        )
                 )
             }
         }
+        Spacer(Modifier.height(8.dp))
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-        horizontalArrangement = Arrangement.Center
-    ) {
-        repeat(size) { i ->
-            val selected = i == (pagerState.currentPage % size)
-            Box(
-                Modifier
-                    .padding(horizontal = 3.dp)
-                    .size(if (selected) 9.dp else 7.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (selected) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.outlineVariant
-                    )
-            )
-        }
+    // Popup con la reseña completa
+    openReview?.let { r ->
+        ReviewDialog(
+            review = r,
+            onDismiss = { openReview = null }
+        )
     }
-    Spacer(Modifier.height(8.dp))
 }
 
 @Composable
 private fun ReviewCard(
     review: Review,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
     val surface = MaterialTheme.colorScheme.surface
     val overlay = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
 
     Surface(
-        modifier = modifier,
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 2.dp,
-        shadowElevation = 4.dp,
+        shadowElevation = 4.dp
     ) {
-        Box(
+        Column(
             Modifier
-                .background(
-                    Brush.verticalGradient(listOf(surface, overlay, surface))
-                )
+                .fillMaxSize()
+                .background(Brush.verticalGradient(listOf(surface, overlay, surface)))
                 .padding(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Cabecera
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val avatarPainter = rememberAsyncImagePainter(
+                        model = review.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                    )
+                    Image(
+                        painter = avatarPainter,
+                        contentDescription = "Avatar de ${review.username ?: "usuario"}",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        review.username ?: "Usuario",
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                FiveStarRating(
+                    score0to10 = (review.score0to10 ?: 0).toFloat(),
+                    starSize = 18.dp,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant
+            )
+
+            // Texto con elipsis para encajar en altura fija
+            Text(
+                text = review.notes?.ifBlank { "Sin comentario." } ?: "Sin comentario.",
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = 18.sp,
+                maxLines = 6,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReviewDialog(
+    review: Review,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 6.dp,
+            shadowElevation = 8.dp,
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth(0.96f)
+        ) {
+            Column(
+                Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Cabecera (igual que en la card)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer)
+                        val avatarPainter = rememberAsyncImagePainter(
+                            model = review.avatarUrl?.takeIf { it.isNotBlank() } ?: R.drawable.default_avatar
+                        )
+                        Image(
+                            painter = avatarPainter,
+                            contentDescription = "Avatar de ${review.username ?: "usuario"}",
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text(review.username ?: "Usuario", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            review.username ?: "Usuario",
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     }
 
                     FiveStarRating(
                         score0to10 = (review.score0to10 ?: 0).toFloat(),
-                        starSize = 18.dp,
+                        starSize = 20.dp,
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                if (!review.notes.isNullOrBlank()) {
-                    Text(
-                        review.notes!!,
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 18.sp
-                    )
-                } else {
-                    Text(
-                        "Sin comentario.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+
+                // Texto completo
+                Text(
+                    text = review.notes?.ifBlank { "Sin comentario." } ?: "Sin comentario.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    lineHeight = 20.sp
+                )
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) { Text("Cerrar") }
                 }
             }
         }
