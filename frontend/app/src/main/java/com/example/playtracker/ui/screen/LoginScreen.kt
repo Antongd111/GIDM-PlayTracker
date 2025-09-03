@@ -140,9 +140,7 @@ fun LoginScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
-                onClick = {
-                    // TODO: PONER MÁS TARDE AQUI RUTA A REGISTRO
-                },
+                onClick = { navController.navigate("register") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
@@ -152,10 +150,7 @@ fun LoginScreen(navController: NavController) {
                     contentColor = TextoClaro
                 )
             ) {
-                Text(
-                    "Registrarse",
-                    style = MaterialTheme.typography.labelLarge
-                )
+                Text("Registrarse", style = MaterialTheme.typography.labelLarge)
             }
 
             TextButton(

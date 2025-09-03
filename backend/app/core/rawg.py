@@ -113,7 +113,10 @@ async def get_game_details(game_id: int) -> Dict[str, Any]:
 # Obtener juegos populares
 async def get_popular_games(page: int = 1, size: int = 10) -> List[Dict[str, Any]]:
     params = {
-        "ordering": "-rating",
+        # Los más añadidos por usuarios → suelen ser conocidos
+        "ordering": "-added",
+        # Rango de fechas: del 1 de enero 2024 hasta hoy
+        "dates": "2025-01-01,2025-12-31",
         "page_size": size,
         "page": page
     }

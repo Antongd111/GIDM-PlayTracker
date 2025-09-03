@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun UserScreen(
     navController: NavController,
+    innerNavController: NavController,
     userId: Int
 ) {
     val viewModel: UserViewModel = viewModel(key = "UserVM_$userId")
@@ -180,19 +181,30 @@ fun UserScreen(
                                         containerColor = MaterialTheme.colorScheme.surface
                                     ),
                                 ) {
-                                    Row(modifier = Modifier.padding(12.dp)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 100.dp)
+                                            .padding(12.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Image(
-                                            painter = rememberAsyncImagePainter(R.drawable.default_avatar),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(90.dp)
-                                                .clip(RoundedCornerShape(8.dp))
-                                        )
-                                        Spacer(Modifier.width(12.dp))
-                                        Column {
-                                            Text("— sin favorito —", style = MaterialTheme.typography.bodyLarge)
-                                            Text("Elige un juego y márcalo con la ⭐", style = MaterialTheme.typography.labelSmall)
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Text(
+                                                "— sin favorito —",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                            Spacer(Modifier.height(4.dp))
+                                            Text(
+                                                "Elige un juego y márcalo con la ⭐",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
                                         }
                                     }
                                 }
@@ -409,7 +421,7 @@ fun UserScreen(
                             ) {
                                 items(ui.friends, key = { it.id }) { friend: Friend ->
                                     Card(
-                                        onClick = { navController.navigate("user/${friend.id}") },
+                                        onClick = { innerNavController.navigate("user/${friend.id}") },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = CardDefaults.cardColors(
                                             containerColor = MaterialTheme.colorScheme.surface

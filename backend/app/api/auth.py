@@ -18,7 +18,7 @@ async def register(user: UserRegister, db: AsyncSession = Depends(get_async_sess
         raise HTTPException(status_code=400, detail="El email ya está en uso")
 
     # Comprobar si el nombre de usuario ya existe
-    result = await db.execute(select(User).where(User.email == user.email))
+    result = await db.execute(select(User).where(User.username == user.username))
     if result.scalar():
         raise HTTPException(status_code=400, detail="El nombre de usuario ya está en uso")
 

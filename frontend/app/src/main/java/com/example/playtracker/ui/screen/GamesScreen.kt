@@ -94,18 +94,42 @@ fun GamesScreen(navController: NavController) {
                 friendsError?.let { msg ->
                     item { Text(msg, color = MaterialTheme.colorScheme.error) }
                 }
+
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 10.dp),
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Juegos de tus amigos",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
                 if (friends.isNotEmpty()) {
-                    item {
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.primary)
-                        Text("Juegos de tus amigos", style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(bottom = 8.dp))
-                    }
                     item {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(friends, key = { it.id }) { g ->
                                 GameCard(game = g, navController = navController)
                             }
+                        }
+                    }
+                } else {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "Tus amigos aún no han completado ningún juego",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
                         }
                     }
                 }

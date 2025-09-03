@@ -160,7 +160,7 @@ fun MainScreen(parentNavController: NavHostController) {
                 composable("me") {
                     // Usa tu storedUserId para mostrar tu propio perfil
                     storedUserId?.let { uid ->
-                        UserScreen(parentNavController, uid)
+                        UserScreen(parentNavController, navController, uid)
                     }
                 }
 
@@ -170,7 +170,7 @@ fun MainScreen(parentNavController: NavHostController) {
                     arguments = listOf(navArgument("userId") { type = NavType.IntType })
                 ) { backStackEntry ->
                     val userId = backStackEntry.arguments?.getInt("userId") ?: return@composable
-                    UserScreen(parentNavController, userId)
+                    UserScreen(parentNavController, navController, userId)
                 }
             }
         }

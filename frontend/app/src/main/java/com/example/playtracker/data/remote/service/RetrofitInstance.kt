@@ -6,8 +6,8 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
-    private const val BASE_URL = "http://192.168.18.191:8000/"
-//    private const val BASE_URL = "https://planner-gilbert-implement-drives.trycloudflare.com"
+//    private const val BASE_URL = "http://192.168.18.191:8000/"
+    private const val BASE_URL = "https://playtracker.antoniogalvezdel.dev/"
 
     // Cliente con timeouts aumentados
     private val client = OkHttpClient.Builder()
